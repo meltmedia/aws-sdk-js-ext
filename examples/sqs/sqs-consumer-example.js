@@ -33,21 +33,17 @@ const consumer = new SqsConsumerExample({
 });
 
 
-consumer.start();
+consumer.start().then(() => {
+  return sqs.sendMessage({
+    MessageBody: JSON.stringify({"test": "test"}),
+    QueueUrl: consumer.status().queueUrl,
+  }).promise()
+    .catch(err => {
+      winston.error(err);
+      throw err;
+    });
+});
 
 // We stop the consumer after 20s.
 // In actual application, you can stop the queue on SIGINT
 utils.wait(20000).then(() => consumer.stop());
-
-//We post a test message
-//
-consumer.on('running', () => {
-  promisify(sqs.sendMessage, sqs)({
-    MessageBody: JSON.stringify({"test": "test"}),
-    QueueUrl: consumer.status().queueUrl,
-  })
-  .catch(err => {
-    winston.error(err);
-    throw err;
-  });
-});

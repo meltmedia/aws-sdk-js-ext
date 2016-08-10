@@ -34,14 +34,27 @@ describe('SqsConsumer', () => {
   let consumer, sqs, schemaService;
 
   beforeEach(() => {
-    sqs = {};
+    sqs = {
+      changeMessageVisibility: sinon.stub().returns({
+        promise: () => Promise.resolve({})
+      }),
+      createQueue: sinon.stub().returns({
+        promise: () => Promise.resolve({QueueUrl: MOCK_QUEUE_URL})
+      }),
+      getQueueUrl: sinon.stub().returns({
+        promise: () => Promise.resolve({QueueUrl: MOCK_QUEUE_URL})
+      }),
+      receiveMessage: sinon.stub().returns({
+        promise: () => Promise.resolve({})
+      }),
+      deleteMessage: sinon.stub().returns({
+        promise: () => Promise.resolve({})
+      })
+    };
+
+    sqs.changeMessageVisibility
     sinon.stub(commonUtils, 'wait').returns(Promise.resolve());
-    consumer = new SqsConsumer({}, msgBody => Promise.resolve());
-    consumer._changeMessageVisibility = sinon.stub().returns(Promise.resolve({}));
-    consumer._createQueue = sinon.stub().returns(Promise.resolve({QueueUrl: MOCK_QUEUE_URL}));
-    consumer._getQueueUrl = sinon.stub().returns(Promise.resolve({QueueUrl: MOCK_QUEUE_URL}));
-    consumer._receiveMessage = sinon.stub().returns(Promise.resolve({}));
-    consumer._deleteMessage = sinon.stub().returns(Promise.resolve({}));
+    consumer = new SqsConsumer({sqs: sqs}, msgBody => Promise.resolve());
   });
 
   afterEach(() => {
@@ -59,7 +72,7 @@ describe('SqsConsumer', () => {
     it('should initialize queue url for non existing queue', () => {
       const error = new Error('MockError');
       error.code = 'AWS.SimpleQueueService.NonExistentQueue';
-      consumer._getQueueUrl.returns(Promise.reject(error));
+      sqs.getQueueUrl.returns({ promise: () => Promise.reject(error) });
       return consumer._init().then(() => {
         expect(consumer._queueUrl).should.not.be.null;
         consumer._queueUrl.should.be.equal(MOCK_QUEUE_URL);
@@ -68,7 +81,7 @@ describe('SqsConsumer', () => {
 
     it('should fail to initialize queue getQueueUrl when AWS Call fails for getQueueUrl', () => {
       const mockError = new Error('MockError');
-      consumer._getQueueUrl.returns(Promise.reject(mockError));
+      sqs.getQueueUrl.returns({ promise: () => Promise.reject(mockError) });
       return consumer._init().catch((error) => {
         expect(consumer._queueUrl).be.null;
         error.should.be.equal(mockError);
@@ -78,10 +91,11 @@ describe('SqsConsumer', () => {
     it('should fail to initialize queue getQueueUrl when AWS Call fails for createQueue', () => {
       const mockNonExistingError = new Error('MockNonExistingQueueError');
       mockNonExistingError.code = 'AWS.SimpleQueueService.NonExistentQueue';
-      consumer._getQueueUrl.returns(Promise.reject(mockNonExistingError));
+      sqs.getQueueUrl.returns({ promise: () => Promise.reject(mockNonExistingError) });
 
       const mockCreateQueueError = new Error('MockCreateQueueError');
-      consumer._createQueue.returns(Promise.reject(mockCreateQueueError));
+      sqs.createQueue.returns({ promise: () => Promise.reject(mockCreateQueueError) });
+
 
       return consumer._init().catch((error) => {
         expect(consumer._queueUrl).be.null;
@@ -93,8 +107,8 @@ describe('SqsConsumer', () => {
       consumer._queueUrl = MOCK_QUEUE_URL;
       return consumer._init().then(() => {
         expect(consumer._queueUrl).be.equal(MOCK_QUEUE_URL);
-        consumer._getQueueUrl.should.not.be.called;
-        consumer._createQueue.should.not.be.called;
+        sqs.getQueueUrl.should.not.be.called;
+        sqs.createQueue.should.not.be.called;
       });
     });
 
@@ -111,7 +125,7 @@ describe('SqsConsumer', () => {
 
     it('should not start polling if initialization fails', () => {
       const mockError = new Error('MockError');
-      consumer._getQueueUrl.returns(Promise.reject(mockError));
+      sqs.getQueueUrl.returns({ promise: () => Promise.reject(mockError) });
 
       return consumer.start().catch((error) => {
         error.should.be.equal(mockError);
@@ -127,7 +141,7 @@ describe('SqsConsumer', () => {
     });
 
     it('should continue polling if there are no messages from queue', () => {
-      consumer._receiveMessage.returns(Promise.resolve({Messages: []}));
+      sqs.receiveMessage.returns({ promise: () => Promise.resolve({Messages: []}) });
       // No error should be thrown
       return consumer.start().then(()=>{
         commonUtils.wait.should.not.be.called;
@@ -135,7 +149,7 @@ describe('SqsConsumer', () => {
     });
 
     it('should poll and process messages from queue', () => {
-      consumer._receiveMessage.returns(Promise.resolve({Messages: [
+      sqs.receiveMessage.returns({ promise: () => Promise.resolve({Messages: [
         {
           Body: "{}",
           ReceiptHandle: 'handle1'
@@ -144,12 +158,12 @@ describe('SqsConsumer', () => {
           Body: "{}",
           ReceiptHandle: 'handle2'
         }
-      ]}));
+      ]})});
       return consumer.start().then(()=>{
-        consumer._deleteMessage.should.be.calledTwice;
-        consumer._deleteMessage.should.be.calledWith({
+        sqs.deleteMessage.should.be.calledTwice;
+        sqs.deleteMessage.should.be.calledWith({
           QueueUrl: MOCK_QUEUE_URL, ReceiptHandle: 'handle1'});
-        consumer._deleteMessage.should.be.calledWith({
+        sqs.deleteMessage.should.be.calledWith({
           QueueUrl: MOCK_QUEUE_URL, ReceiptHandle: 'handle2'});
         commonUtils.wait.should.not.be.called;
       });
@@ -157,22 +171,22 @@ describe('SqsConsumer', () => {
 
     it('should poll, validate and process messages from queue when schema is defined', () => {
       consumer.conf.schema.name = 'mock-schema';
-      consumer._receiveMessage.returns(Promise.resolve({Messages: [
+      sqs.receiveMessage.returns({ promise: () => Promise.resolve({Messages: [
         {
           Body: "{}",
           ReceiptHandle: 'handle1'
         }
-      ]}));
+      ]})});
       return consumer.start().then(()=>{
-        consumer._deleteMessage.should.be.calledOnce;
-        consumer._deleteMessage.should.be.calledWith({
+        sqs.deleteMessage.should.be.calledOnce;
+        sqs.deleteMessage.should.be.calledWith({
           QueueUrl: MOCK_QUEUE_URL, ReceiptHandle: 'handle1'});
         commonUtils.wait.should.not.be.called;
       });
     });
 
     it('should handle error in message processing', () => {
-      consumer._receiveMessage.returns(Promise.resolve({Messages: [
+      sqs.receiveMessage.returns({ promise: () => Promise.resolve({Messages: [
         {
           Body: "{}",
           Attributes: {
@@ -180,11 +194,11 @@ describe('SqsConsumer', () => {
           },
           ReceiptHandle: 'handle1'
         }
-      ]}));
-      consumer.handler = msBody => Promise.reject(new Error('MockError'));
+      ]})});
+      consumer.handle = msBody => Promise.reject(new Error('MockError'));
       return consumer.start().then(()=>{
-        consumer._deleteMessage.should.not.be.called;
-        consumer._changeMessageVisibility.should.be.calledWith({
+        sqs.deleteMessage.should.not.be.called;
+        sqs.changeMessageVisibility.should.be.calledWith({
           QueueUrl: MOCK_QUEUE_URL,
           ReceiptHandle: "handle1",
           VisibilityTimeout: EXPECTED_MESSAGE_VISIBILITY });
@@ -193,7 +207,7 @@ describe('SqsConsumer', () => {
     });
 
     it('should handle syntax error in message processing', () => {
-      consumer._receiveMessage.returns(Promise.resolve({Messages: [
+      sqs.receiveMessage.returns({ promise: () => Promise.resolve({Messages: [
         {
           Body: "{}",
           Attributes: {
@@ -201,18 +215,18 @@ describe('SqsConsumer', () => {
           },
           ReceiptHandle: 'handle1'
         }
-      ]}));
-      consumer._handleMessageBody = msBody => Promise.reject(new SyntaxError('MockError'));
+      ]})});
+      consumer.handle = msBody => Promise.reject(new SyntaxError('MockError'));
       return consumer.start().then(()=>{
-        consumer._deleteMessage.should.be.calledWith({
+        sqs.deleteMessage.should.be.calledWith({
           QueueUrl: MOCK_QUEUE_URL, ReceiptHandle: 'handle1'});
-        consumer._changeMessageVisibility.should.not.be.called;
+        sqs.changeMessageVisibility.should.not.be.called;
         commonUtils.wait.should.not.be.called;
       });
     });
 
     it('should handle NonRetryableError  in message processing', () => {
-      consumer._receiveMessage.returns(Promise.resolve({Messages: [
+      sqs.receiveMessage.returns({ promise: () => Promise.resolve({Messages: [
         {
           Body: "{}",
           Attributes: {
@@ -220,12 +234,12 @@ describe('SqsConsumer', () => {
           },
           ReceiptHandle: 'handle1'
         }
-      ]}));
-      consumer._handleMessageBody = msBody => Promise.reject(new error.NonRetryableError('MockError'));
+      ]})});
+      consumer.handle = msBody => Promise.reject(new error.NonRetryableError('MockError'));
       return consumer.start().then(()=>{
-        consumer._deleteMessage.should.be.calledWith({
+        sqs.deleteMessage.should.be.calledWith({
           QueueUrl: MOCK_QUEUE_URL, ReceiptHandle: 'handle1'});
-        consumer._changeMessageVisibility.should.not.be.called;
+        sqs.changeMessageVisibility.should.not.be.called;
         commonUtils.wait.should.not.be.called;
       });
     });
@@ -233,7 +247,7 @@ describe('SqsConsumer', () => {
     it('should handle validation error during message processing', () => {
       consumer.conf.schema = '{"type": "array"}';
 
-      consumer._receiveMessage.returns(Promise.resolve({Messages: [
+      sqs.receiveMessage.returns({ promise: () => Promise.resolve({Messages: [
         {
           Body: "{}",
           Attributes: {
@@ -241,17 +255,17 @@ describe('SqsConsumer', () => {
           },
           ReceiptHandle: 'handle1'
         }
-      ]}));
+      ]})});
       return consumer.start().then(()=>{
-        consumer._deleteMessage.should.be.calledWith({
+        sqs.deleteMessage.should.be.calledWith({
           QueueUrl: MOCK_QUEUE_URL, ReceiptHandle: 'handle1'});
-        consumer._changeMessageVisibility.should.not.be.called;
+        sqs.changeMessageVisibility.should.not.be.called;
         commonUtils.wait.should.not.be.called;
       });
     });
 
     it('should handle error in message deletion', () => {
-      consumer._receiveMessage.returns(Promise.resolve({Messages: [
+      sqs.receiveMessage.returns({ promise: () => Promise.resolve({Messages: [
         {
           Body: "{}",
           Attributes: {
@@ -259,11 +273,11 @@ describe('SqsConsumer', () => {
           },
           ReceiptHandle: 'handle1'
         }
-      ]}));
-      consumer._deleteMessage.returns(Promise.reject(new Error('MockError during deletion')));
+      ]})});
+      sqs.deleteMessage.returns({ promise: Promise.reject(new Error('MockError during deletion'))});
       return consumer.start().then(()=>{
-        consumer._deleteMessage.should.be.calledOnce;
-        consumer._changeMessageVisibility.should.be.calledWith({
+        sqs.deleteMessage.should.be.calledOnce;
+        sqs.changeMessageVisibility.should.be.calledWith({
           QueueUrl: MOCK_QUEUE_URL,
           ReceiptHandle: "handle1",
           VisibilityTimeout: EXPECTED_MESSAGE_VISIBILITY });
@@ -272,7 +286,7 @@ describe('SqsConsumer', () => {
     });
 
     it('should wait prior to polling for second run if there is an error in processing', () => {
-      consumer._receiveMessage.returns(Promise.reject(new Error('MockError')));
+      sqs.receiveMessage.returns({ promise: () => Promise.reject(new Error('MockError'))});
       // No error should be thrown
       return consumer.start().then(()=>{
         commonUtils.wait.should.be.calledWith(EXPECTED_POLL_WAIT);
