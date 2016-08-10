@@ -1,13 +1,20 @@
 "use strict";
 
-const SqsConsumer = require('aws-sdk-js-ext').sqs.SqsConsumer;
+const SqsConsumer =  require('../../lib').sqs.SqsConsumer, //require('aws-sdk-js-ext').sqs.SqsConsumer,
+  winston = require('winston'),
+  AWS = require('aws-sdk'),
+  promisify = require('es6-promisify'),
+  utils = require('aws-sdk-js-ext').utils;
 
 class SqsConsumerExample extends SqsConsumer{
   handle(msgBody) {
-    // Do something here and return a promise
-
+    winston.info(`SqsConsumer::${this.name}:: Handled message: ${JSON.stringify(msgBody)}`);
   }
 }
+
+const sqs = new AWS.SQS({
+  region: 'us-west-2'
+});
 
 /**
  * Create consumer by passing config.
@@ -15,14 +22,32 @@ class SqsConsumerExample extends SqsConsumer{
  *
  * @type {SqsConsumerExample}
  */
-let consumer = new SqsConsumerExample({
+const consumer = new SqsConsumerExample({
   name: 'sqs-consumer-example',
   conf: {
     queue: {
       prefix: 'sqs-consumer-example-',
     }
-  }
+  },
+  sqs: sqs // Optional
 });
 
 
 consumer.start();
+
+// We stop the consumer after 20s.
+// In actual application, you can stop the queue on SIGINT
+utils.wait(20000).then(() => consumer.stop());
+
+//We post a test message
+//
+consumer.on('running', () => {
+  promisify(sqs.sendMessage, sqs)({
+    MessageBody: JSON.stringify({"test": "test"}),
+    QueueUrl: consumer.status().queueUrl,
+  })
+  .catch(err => {
+    winston.error(err);
+    throw err;
+  });
+});

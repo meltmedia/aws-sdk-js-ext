@@ -30,14 +30,13 @@ const
   EXPECTED_MESSAGE_VISIBILITY = 62, //seconds
   EXPECTED_POLL_WAIT = 12000; //ms
 
-describe('SqsHandler', () => {
+describe('SqsConsumer', () => {
   let consumer, sqs, schemaService;
 
   beforeEach(() => {
     sqs = {};
     sinon.stub(commonUtils, 'wait').returns(Promise.resolve());
     consumer = new SqsConsumer({}, msgBody => Promise.resolve());
-    //sqsHandler._handleMessageBody = msgBody => Promise.resolve({test:'test'});
     consumer._changeMessageVisibility = sinon.stub().returns(Promise.resolve({}));
     consumer._createQueue = sinon.stub().returns(Promise.resolve({QueueUrl: MOCK_QUEUE_URL}));
     consumer._getQueueUrl = sinon.stub().returns(Promise.resolve({QueueUrl: MOCK_QUEUE_URL}));
