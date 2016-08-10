@@ -9,4 +9,20 @@ class SqsConsumerExample extends SqsConsumer{
   }
 }
 
-new SqsConsumerExample().start();
+/**
+ * Create consumer by passing config.
+ * Alternatively you can specify config in config module
+ *
+ * @type {SqsConsumerExample}
+ */
+let consumer = new SqsConsumerExample({
+  name: 'sqs-consumer-example',
+  conf: {
+    queue: {
+      prefix: 'sqs-consumer-example-',
+    }
+  }
+});
+
+
+consumer.start();
