@@ -1,0 +1,17 @@
+{
+  "name": "aws-sdk-js-ext-examples",
+  "version": "1.0.0",
+  "description": "AWS SDK Ext Examples",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "aws-sdk-js-ext": "https://github.com/meltmedia/aws-sdk-js-ext/tarball/develop",
+    "install": "^0.8.1",
+    "npm": "^3.10.5",
+    "winston": "^2.2.0"
+  }
+}

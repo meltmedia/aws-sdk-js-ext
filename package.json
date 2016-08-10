@@ -2,10 +2,13 @@
   "name": "aws-sdk-js-ext",
   "version": "0.0.1",
   "description": "AWS SDK Javascript Extensions",
-  "main": "index.js",
+  "main": "lib/index.js",
   "scripts": {
     "test": "npm test"
   },
+  "files" :[
+    "lib"
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/meltmedia/aws-sdk-js-ext.git"
