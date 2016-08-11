@@ -7,8 +7,10 @@ awsext:
         sqsOptions:
           region: us-west-2
         schema:
+          "id" : "#consumer-example-schema"
           properties:
             id:
               type: 'number'
           required:
             - id
+          additionalProperties: true

@@ -1,6 +1,6 @@
 "use strict";
 
-const SqsConsumer =  require('../../lib').sqs.SqsConsumer, //require('aws-sdk-js-ext').sqs.SqsConsumer,
+const SqsConsumer =   require('aws-sdk-js-ext').sqs.SqsConsumer, //require('../../lib').sqs.SqsConsumer
   winston = require('winston'),
   promisify = require('es6-promisify'),
   config = require('config'),
@@ -24,21 +24,28 @@ const consumer = new SqsConsumerExample({
 });
 
 
-consumer.start().then(() => {
+
+
+
+consumer.on('running', () => {
+
   winston.info("SqsExample:: Sending test message");
   return consumer._sqs.sendMessage({
-    MessageBody: JSON.stringify({"test": "test"}),
+    MessageBody: JSON.stringify({"id": 1, "test": "test"}),
     QueueUrl: consumer.status().queueUrl,
-  }).promise();
-}).catch(err => {
-  winston.error(err);
-  throw err;
+  }).promise()
+    .catch(err => {
+      winston.error(err);
+      throw err;
+  });
 });
 
 consumer.on('stopped', () => {
-  winston.info(`SqsExample::${this.name}:: Consumer stopped`);
+  winston.info(`SqsExample::${consumer.name}:: Consumer stopped`);
 });
 
+
+consumer.start();
 // We stop the consumer after 20s.
 // In actual application, you can stop the queue on SIGINT
 utils.wait(20000).then(() => consumer.stop());
