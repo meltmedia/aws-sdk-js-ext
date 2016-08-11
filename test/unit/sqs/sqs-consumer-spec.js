@@ -5,7 +5,6 @@ require('../../init-chai');
 const
   error = require('../../../lib/common/error'),
   commonUtils = require('../../../lib/common/utils'),
-  ValidationUtil = require('../../../lib/common/validation'),
   SqsConsumer = require('../../../lib/sqs/sqs-consumer'),
   _ = require('lodash'),
   sinon = require('sinon'),
@@ -51,8 +50,6 @@ describe('SqsConsumer', () => {
         promise: () => Promise.resolve({})
       })
     };
-
-    sqs.changeMessageVisibility
     sinon.stub(commonUtils, 'wait').returns(Promise.resolve());
     consumer = new SqsConsumer({sqs: sqs}, msgBody => Promise.resolve());
   });
