@@ -1,5 +1,5 @@
 {
-  "name": "aws-sdk-js-ext-examples",
+  "name": "aws-sdk-ext-examples",
   "version": "1.0.0",
   "description": "AWS SDK Ext Examples",
   "main": "index.js",

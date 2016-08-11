@@ -1,5 +1,5 @@
 {
-  "name": "aws-sdk-js-ext",
+  "name": "aws-sdk-ext",
   "version": "0.0.1",
   "description": "AWS SDK Javascript Extensions",
   "main": "lib/index.js",
