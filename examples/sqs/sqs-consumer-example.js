@@ -2,46 +2,41 @@
 
 const SqsConsumer =  require('../../lib').sqs.SqsConsumer, //require('aws-sdk-js-ext').sqs.SqsConsumer,
   winston = require('winston'),
-  AWS = require('aws-sdk'),
   promisify = require('es6-promisify'),
+  config = require('config'),
   utils = require('aws-sdk-js-ext').utils;
 
 class SqsConsumerExample extends SqsConsumer{
   handle(msgBody) {
-    winston.info(`SqsConsumer::${this.name}:: Handled message: ${JSON.stringify(msgBody)}`);
+    winston.info(`SqsExample::${this.name}:: Handled message: ${JSON.stringify(msgBody)}`);
   }
 }
 
-const sqs = new AWS.SQS({
-  region: 'us-west-2'
-});
-
 /**
- * Create consumer by passing config.
- * Alternatively you can specify config in config module
+ * Create consumer
  *
  * @type {SqsConsumerExample}
  */
 const consumer = new SqsConsumerExample({
-  name: 'sqs-consumer-example',
-  conf: {
-    queue: {
-      prefix: 'sqs-consumer-example-',
-    }
-  },
-  sqs: sqs // Optional
+  name: 'sqs-consumer-example', // This is name of consumer and not queue name
+  conf: { }, // Override conf/default.yaml settings here
+  sqs: null // If not specified, it will automatically be created.
 });
 
 
 consumer.start().then(() => {
-  return sqs.sendMessage({
+  winston.info("SqsExample:: Sending test message");
+  return consumer._sqs.sendMessage({
     MessageBody: JSON.stringify({"test": "test"}),
     QueueUrl: consumer.status().queueUrl,
-  }).promise()
-    .catch(err => {
-      winston.error(err);
-      throw err;
-    });
+  }).promise();
+}).catch(err => {
+  winston.error(err);
+  throw err;
+});
+
+consumer.on('stopped', () => {
+  winston.info(`SqsExample::${this.name}:: Consumer stopped`);
 });
 
 // We stop the consumer after 20s.

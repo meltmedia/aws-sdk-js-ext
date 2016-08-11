@@ -1,0 +1,14 @@
+awsext:
+  sqs:
+    consumers:
+      sqs-consumer-example:
+        queue:
+          prefix: 'sqs-consumer-example-'
+        sqsOptions:
+          region: us-west-2
+        schema:
+          properties:
+            id:
+              type: 'number'
+          required:
+            - id
