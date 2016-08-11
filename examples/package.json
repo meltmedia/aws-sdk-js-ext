@@ -9,7 +9,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "aws-sdk-js-ext": "https://github.com/meltmedia/aws-sdk-js-ext/tarball/develop",
+    "aws-sdk-ext": "https://github.com/meltmedia/aws-sdk-js-ext/tarball/develop",
     "install": "^0.8.1",
     "js-yaml": "^3.6.1",
     "npm": "^3.10.5",

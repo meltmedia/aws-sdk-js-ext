@@ -4,7 +4,7 @@ const SqsConsumer =   require('aws-sdk-ext').sqs.SqsConsumer, //require('../../l
   winston = require('winston'),
   promisify = require('es6-promisify'),
   config = require('config'),
-  utils = require('aws-sdk-js-ext').utils;
+  utils = require('aws-sdk-ext').utils;
 
 class SqsConsumerExample extends SqsConsumer{
   handle(msgBody) {
