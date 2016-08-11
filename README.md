@@ -24,6 +24,11 @@ To install latest release version run:
 npm install --save https://github.com/meltmedia/aws-sdk-js-ext/tarball/master
 ```
 
+## API Documentation
+This is WIP. At the moment you can have a look at following examples for usage:
+
+- [SQS Consumer](examples/sqs/sqs-consumer.js)
+
 ## Release
 This project uses gitflow for release.
 
