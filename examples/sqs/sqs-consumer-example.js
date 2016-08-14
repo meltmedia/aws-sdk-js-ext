@@ -1,6 +1,7 @@
 "use strict";
 
-const SqsConsumer =   require('aws-sdk-ext').sqs.SqsConsumer, //require('../../lib').sqs.SqsConsumer
+const //SqsConsumer = require('aws-sdk-ext').sqs.SqsConsumer,
+  SqsConsumer = require('../../lib').sqs.SqsConsumer,
   winston = require('winston'),
   promisify = require('es6-promisify'),
   config = require('config'),

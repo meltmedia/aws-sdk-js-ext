@@ -13,19 +13,6 @@ const
 
 const
   MOCK_QUEUE_URL = 'http://MockQueueUrl',
-  CONSUMERS_CONF = {
-    defaults: {
-      schema: {},
-      queue: {
-        env: 'test',
-      }
-    },
-    mock: {
-      queue: {
-        prefix: 'MockQueue'
-      }
-    }
-  },
   EXPECTED_MESSAGE_VISIBILITY = 62, //seconds
   EXPECTED_POLL_WAIT = 12000; //ms
 
@@ -56,59 +43,6 @@ describe('SqsConsumer', () => {
 
   afterEach(() => {
     commonUtils.wait.restore();
-  });
-
-  describe('init', () => {
-    it('should initialize queue url for existing queue', () => {
-      return consumer._init().then(() => {
-        expect(consumer._queueUrl).not.be.null;
-        consumer._queueUrl.should.be.equal(MOCK_QUEUE_URL);
-      });
-    });
-
-    it('should initialize queue url for non existing queue', () => {
-      const error = new Error('MockError');
-      error.code = 'AWS.SimpleQueueService.NonExistentQueue';
-      sqs.getQueueUrl.returns({ promise: () => Promise.reject(error) });
-      return consumer._init().then(() => {
-        expect(consumer._queueUrl).should.not.be.null;
-        consumer._queueUrl.should.be.equal(MOCK_QUEUE_URL);
-      });
-    });
-
-    it('should fail to initialize queue getQueueUrl when AWS Call fails for getQueueUrl', () => {
-      const mockError = new Error('MockError');
-      sqs.getQueueUrl.returns({ promise: () => Promise.reject(mockError) });
-      return consumer._init().catch((error) => {
-        expect(consumer._queueUrl).be.null;
-        error.should.be.equal(mockError);
-      });
-    });
-
-    it('should fail to initialize queue getQueueUrl when AWS Call fails for createQueue', () => {
-      const mockNonExistingError = new Error('MockNonExistingQueueError');
-      mockNonExistingError.code = 'AWS.SimpleQueueService.NonExistentQueue';
-      sqs.getQueueUrl.returns({ promise: () => Promise.reject(mockNonExistingError) });
-
-      const mockCreateQueueError = new Error('MockCreateQueueError');
-      sqs.createQueue.returns({ promise: () => Promise.reject(mockCreateQueueError) });
-
-
-      return consumer._init().catch((error) => {
-        expect(consumer._queueUrl).be.null;
-        error.should.be.equal(mockCreateQueueError);
-      });
-    });
-
-    it('should not re-initialize queue url', () => {
-      consumer._queueUrl = MOCK_QUEUE_URL;
-      return consumer._init().then(() => {
-        expect(consumer._queueUrl).be.equal(MOCK_QUEUE_URL);
-        sqs.getQueueUrl.should.not.be.called;
-        sqs.createQueue.should.not.be.called;
-      });
-    });
-
   });
 
   describe('start', () => {
