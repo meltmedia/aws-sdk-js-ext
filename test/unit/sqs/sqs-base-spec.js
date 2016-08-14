@@ -24,6 +24,9 @@ describe('SqsConsumer', () => {
       }),
       getQueueUrl: sinon.stub().returns({
         promise: () => Promise.resolve({QueueUrl: MOCK_QUEUE_URL})
+      }),
+      sendMessage: sinon.stub().returns({
+        promise: () => Promise.resolve()
       })
     };
     sinon.stub(commonUtils, 'wait').returns(Promise.resolve());
@@ -85,5 +88,40 @@ describe('SqsConsumer', () => {
       });
     });
 
+  });
+
+  describe('validateMessage', () => {
+    it('should validate message when schema is defined', () => {
+      let msgData = {
+        "test": "test"
+      };
+      return sqsBase.validateMessage(msgData).should.eventually.deep.equals(msgData);
+    });
+
+    it('should fail validation when data is invalid', () => {
+      let msgData = [];
+      return sqsBase.validateMessage(msgData).should.eventually.be.rejected;
+    });
+
+    it('should skip validation when schema is not defined', () => {
+      let msgData = [];
+      sqsBase.conf.schema = undefined;
+      return sqsBase.validateMessage(msgData).should.eventually.be.fulfilled;
+    });
+  });
+
+  describe('sendMessage', () => {
+
+    it('should validate and send message', () => {
+      let msgData = {
+        "test": "test"
+      };
+      return sqsBase.sendMessage(msgData).then( () => {
+        return sqs.sendMessage.should.be.calledWith({
+          MessageBody: JSON.stringify(msgData),
+          QueueUrl: MOCK_QUEUE_URL
+        });
+      });
+    });
   });
 });

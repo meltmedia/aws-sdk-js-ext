@@ -1,7 +1,7 @@
 "use strict";
 
-const //SqsConsumer = require('aws-sdk-ext').sqs.SqsConsumer,
-  SqsConsumer = require('../../lib').sqs.SqsConsumer,
+const SqsConsumer = require('aws-sdk-ext').sqs.SqsConsumer,
+  // SqsConsumer = require('../../lib').sqs.SqsConsumer,
   winston = require('winston'),
   promisify = require('es6-promisify'),
   config = require('config'),
@@ -31,10 +31,7 @@ const consumer = new SqsConsumerExample({
 consumer.on('running', () => {
 
   winston.info("SqsExample:: Sending test message");
-  return consumer._sqs.sendMessage({
-    MessageBody: JSON.stringify({"id": 1, "test": "test"}),
-    QueueUrl: consumer.status().queueUrl,
-  }).promise()
+  return consumer.sendMessage({"id": 1, "test": "test"})
     .catch(err => {
       winston.error(err);
       throw err;
