@@ -6,10 +6,8 @@ const
   error = require('../../../lib/common/error'),
   commonUtils = require('../../../lib/common/utils'),
   SqsConsumer = require('../../../lib/sqs/sqs-consumer'),
-  _ = require('lodash'),
   sinon = require('sinon'),
-  chai = require("chai"),
-  expect = chai.expect;
+  chai = require("chai");
 
 const
   MOCK_QUEUE_URL = 'http://MockQueueUrl',
