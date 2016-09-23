@@ -259,7 +259,7 @@ describe('SqsConsumer', () => {
     });
   });
 
-  describe('_prepareForScheduledProcessing', () => {
+  describe('_scheduledConsuming', () => {
     let config = {
           defaults: {
             consumer: {
@@ -302,7 +302,7 @@ describe('SqsConsumer', () => {
         return sqs.receiveMessage()
           .promise()
           .then(data => {
-            return consumer._prepareForScheduledProcessing(data);
+            return consumer._scheduledConsuming(data);
           })
           .then(data => {
             data.should.deep.equal(messages);
@@ -321,7 +321,7 @@ describe('SqsConsumer', () => {
         return sqs.receiveMessage()
           .promise()
           .then(data => {
-            return consumer._prepareForScheduledProcessing(data);
+            return consumer._scheduledConsuming(data);
           })
           .then(data => {
             data.should.deep.equal(messages);
@@ -345,7 +345,7 @@ describe('SqsConsumer', () => {
         sqs.receiveMessage.returns({ promise: () => Promise.resolve(messages)});
         return sqs.receiveMessage()
           .promise()
-          .then(data => consumer._prepareForScheduledProcessing(data))
+          .then(data => consumer._scheduledConsuming(data))
           .then(data => {
             data.should.deep.equal({});
           });
@@ -369,7 +369,7 @@ describe('SqsConsumer', () => {
         return sqs.receiveMessage()
           .promise()
           .then(data => {
-            return consumer._prepareForScheduledProcessing(data);
+            return consumer._scheduledConsuming(data);
           })
           .then(data => {
             data.should.deep.equal(messages);
@@ -393,7 +393,7 @@ describe('SqsConsumer', () => {
         sqs.receiveMessage.returns({ promise: () => Promise.resolve(messages)});
         return sqs.receiveMessage()
           .promise()
-          .then(data => consumer._prepareForScheduledProcessing(data))
+          .then(data => consumer._scheduledConsuming(data))
           .then(data => {
             data.should.deep.equal({});
           });
