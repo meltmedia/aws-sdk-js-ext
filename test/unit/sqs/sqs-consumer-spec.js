@@ -36,7 +36,6 @@ describe('SqsConsumer', () => {
       })
     };
     sinon.stub(commonUtils, 'wait').returns(Promise.resolve());
-    consumer = new SqsConsumer({sqs: sqs}, msgBody => Promise.resolve());
   });
 
   afterEach(() => {
@@ -45,6 +44,7 @@ describe('SqsConsumer', () => {
 
   describe('start', () => {
     beforeEach(() => {
+      consumer = new SqsConsumer({sqs: sqs}, msgBody => Promise.resolve());
       sinon.stub(consumer, '_checkPoll').onFirstCall().returns(true).onSecondCall().returns(false);
     });
 
@@ -224,6 +224,10 @@ describe('SqsConsumer', () => {
   });
 
   describe('checkPoll', () => {
+    beforeEach(() => {
+      consumer = new SqsConsumer({sqs: sqs}, msgBody => Promise.resolve());
+    });
+
     it('should return false if queueUrl is not initialized', () => {
       consumer._running=true;
 
@@ -244,10 +248,156 @@ describe('SqsConsumer', () => {
   });
 
   describe('stop', () => {
+    beforeEach(() => {
+      consumer = new SqsConsumer({sqs: sqs}, msgBody => Promise.resolve());
+    });
+
     it('should stop polling', () => {
       consumer._running=true;
       consumer.stop();
       consumer._running.should.be.false;
+    });
+  });
+
+  describe('_prepareForScheduledProcessing', () => {
+    let config = {
+          defaults: {
+            consumer: {
+              scheduler: {
+                scheduled: true,
+                start: '12:00:00',
+                duration: 2 * 60 * 60,
+                maxVisibilityTimeout: 10
+              }
+            }
+          }
+        },
+        messages = {
+          Messages: [{Body: "{}",ReceiptHandle: 'handle1'}]
+        };
+
+    beforeEach(() => {
+      config = {
+        defaults: {
+          consumer: {
+            scheduler: {
+              scheduled: true,
+              start: '12:00:00',
+              duration: 2 * 60 * 60,
+              maxVisibilityTimeout: 10
+            }
+          }
+        }
+      };
+    });
+
+    context('when consumer config is not present', () => {
+      before(() => {
+        delete config.defaults.consumer.scheduler;
+        consumer = new SqsConsumer({sqs: sqs}, msgBody => Promise.resolve(), {sqs: config});
+      });
+
+      it('resolves the original data', () => {
+        sqs.receiveMessage.returns({ promise: () => Promise.resolve(messages)});
+        return sqs.receiveMessage()
+          .promise()
+          .then(data => {
+            return consumer._prepareForScheduledProcessing(data);
+          })
+          .then(data => {
+            data.should.deep.equal(messages);
+          });
+      });
+    });
+
+    context('when consumer is not scheduled', () => {
+      before(() => {
+        config.defaults.consumer.scheduler.scheduled = false;
+        consumer = new SqsConsumer({sqs: sqs}, msgBody => Promise.resolve(), {sqs: config});
+      });
+
+      it('resolves the original data', () => {
+        sqs.receiveMessage.returns({ promise: () => Promise.resolve(messages)});
+        return sqs.receiveMessage()
+          .promise()
+          .then(data => {
+            return consumer._prepareForScheduledProcessing(data);
+          })
+          .then(data => {
+            data.should.deep.equal(messages);
+          });
+      });
+    });
+
+    context('when polling messages before the scheduled processing window', () => {
+      let clock;
+
+      before(() => {
+        consumer = new SqsConsumer({sqs: sqs}, msgBody => Promise.resolve(), {sqs: config});
+        clock = sinon.useFakeTimers(new Date().setHours(9, 0, 0));
+      });
+
+      after(() => {
+        clock.restore();
+      });
+
+      it('resolves an empty array', () => {
+        sqs.receiveMessage.returns({ promise: () => Promise.resolve(messages)});
+        return sqs.receiveMessage()
+          .promise()
+          .then(data => consumer._prepareForScheduledProcessing(data))
+          .then(data => {
+            data.should.deep.equal({});
+          });
+      });
+    });
+
+    context('when polling messages during the scheduled processing window', () => {
+      let clock;
+
+      before(() => {
+        consumer = new SqsConsumer({sqs: sqs}, msgBody => Promise.resolve(), {sqs: config});
+        clock = sinon.useFakeTimers(new Date().setHours(13, 0, 0));
+      });
+
+      after(() => {
+        clock.restore();
+      });
+
+      it('resolves the original data', () => {
+        sqs.receiveMessage.returns({ promise: () => Promise.resolve(messages)});
+        return sqs.receiveMessage()
+          .promise()
+          .then(data => {
+            return consumer._prepareForScheduledProcessing(data);
+          })
+          .then(data => {
+            data.should.deep.equal(messages);
+          });
+      });
+    });
+
+    context('when polling messages after the scheduled processing window', () => {
+      let clock;
+
+      before(() => {
+        consumer = new SqsConsumer({sqs: sqs}, msgBody => Promise.resolve(), {sqs: config});
+        clock = sinon.useFakeTimers(new Date().setHours(16, 0, 0));
+      });
+
+      after(() => {
+        clock.restore();
+      });
+
+      it('resolves an empty array', () => {
+        sqs.receiveMessage.returns({ promise: () => Promise.resolve(messages)});
+        return sqs.receiveMessage()
+          .promise()
+          .then(data => consumer._prepareForScheduledProcessing(data))
+          .then(data => {
+            data.should.deep.equal({});
+          });
+      });
     });
   });
 });
