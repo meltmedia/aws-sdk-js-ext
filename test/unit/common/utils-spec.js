@@ -37,4 +37,14 @@ describe('utils', () => {
       return waitPromise.should.be.fulfilled;
     });
   });
+
+  describe('getVisibilityTimeout', () => {
+    it('returns a value clamped at the max', () => {
+      commonUtils.getVisibilityTimeout(2000, 1000).should.equal(1000);
+    });
+
+    it('returns any value below max', () => {
+      commonUtils.getVisibilityTimeout(2000, 60000).should.equal(2000);
+    });
+  });
 });

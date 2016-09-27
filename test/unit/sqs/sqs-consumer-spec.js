@@ -261,20 +261,20 @@ describe('SqsConsumer', () => {
 
   describe('_scheduledConsuming', () => {
     let config = {
-          defaults: {
-            consumer: {
-              scheduler: {
-                scheduled: true,
-                start: '12:00:00',
-                duration: 2 * 60 * 60,
-                maxVisibilityTimeout: 10
-              }
-            }
+      defaults: {
+        consumer: {
+          scheduler: {
+            scheduled: true,
+            start: '12:00:00',
+            duration: '2 hours',
+            maxVisibilityTimeout: '10 seconds'
           }
-        },
-        messages = {
-          Messages: [{Body: "{}",ReceiptHandle: 'handle1'}]
-        };
+        }
+      }
+    },
+    messages = {
+      Messages: [{Body: "{}",ReceiptHandle: 'handle1'}]
+    };
 
     beforeEach(() => {
       config = {
@@ -283,8 +283,8 @@ describe('SqsConsumer', () => {
             scheduler: {
               scheduled: true,
               start: '12:00:00',
-              duration: 2 * 60 * 60,
-              maxVisibilityTimeout: 10
+              duration: '2 hours',
+              maxVisibilityTimeout: '10 seconds'
             }
           }
         }
@@ -308,6 +308,18 @@ describe('SqsConsumer', () => {
             data.should.deep.equal(messages);
           });
       });
+    });
+
+    it('changes the message visibility timeout to the maxVisibilityTimeout in the config', () => {
+      sqs.receiveMessage.returns({ promise: () => Promise.resolve(messages)});
+      return sqs.receiveMessage()
+        .promise()
+        .then(data => {
+          return consumer._scheduledConsuming(data);
+        })
+        .then(data => {
+          data.should.deep.equal(messages);
+        });
     });
 
     context('when consumer is not scheduled', () => {
@@ -341,7 +353,7 @@ describe('SqsConsumer', () => {
         clock.restore();
       });
 
-      it('resolves an empty array', () => {
+      it('resolves an empty object', () => {
         sqs.receiveMessage.returns({ promise: () => Promise.resolve(messages)});
         return sqs.receiveMessage()
           .promise()
@@ -389,7 +401,7 @@ describe('SqsConsumer', () => {
         clock.restore();
       });
 
-      it('resolves an empty array', () => {
+      it('resolves an empty object', () => {
         sqs.receiveMessage.returns({ promise: () => Promise.resolve(messages)});
         return sqs.receiveMessage()
           .promise()
