@@ -260,21 +260,10 @@ describe('SqsConsumer', () => {
   });
 
   describe('_scheduledConsuming', () => {
-    let config = {
-      defaults: {
-        consumer: {
-          scheduler: {
-            scheduled: true,
-            start: '12:00:00',
-            duration: '2 hours',
-            maxVisibilityTimeout: '10 seconds'
-          }
-        }
-      }
-    },
-    messages = {
-      Messages: [{Body: "{}",ReceiptHandle: 'handle1'}]
-    };
+    let config,
+        messages = {
+          Messages: [{Body: "{}",ReceiptHandle: 'handle1'}]
+        };
 
     beforeEach(() => {
       config = {
@@ -412,4 +401,81 @@ describe('SqsConsumer', () => {
       });
     });
   });
+
+  describe('_getVisibilityTimeout', () => {
+    let config,
+        messages = {
+          Messages: [{Body: "{}",ReceiptHandle: 'handle1'}]
+        };
+
+    beforeEach(() => {
+      config = {
+        defaults: {
+          consumer: {
+            scheduler: {
+              scheduled: true,
+              start: '12:00:00',
+              duration: '2 hours',
+              maxVisibilityTimeout: '6 hours'
+            }
+          }
+        }
+      };
+    });
+
+    describe('when outside the scheduled processing window', () => {
+      let clock;
+
+      beforeEach(() => {
+        consumer = new SqsConsumer({sqs: sqs}, msgBody => Promise.resolve(), {sqs: config});
+      });
+
+      afterEach(() => {
+        clock.restore();
+      });
+
+      context('by a duration larger than the max visibility timeout', () => {
+        before(() => {
+          clock = sinon.useFakeTimers(new Date().setHours(5, 0, 0));
+        });
+
+        it('returns the max visibility', () => {
+          let timeout = consumer._getVisibilityTimeout();
+          timeout.should.equal(6 * 60 * 60);
+        });
+      });
+
+      context('by a duration smaller than the max visibility timeout', () => {
+        before(() => {
+          clock = sinon.useFakeTimers(new Date().setHours(11, 0, 0));
+        });
+
+        it('returns a timeout of the difference between now and the scheduled processing window', () => {
+          let timeout = consumer._getVisibilityTimeout();
+          console.log(timeout);
+          timeout.should.equal(1 * 60 * 60);
+        });
+      });
+    });
+
+    describe('when in the scheduled processing window', () => {
+      let clock;
+
+      before(() => {
+        consumer = new SqsConsumer({sqs: sqs}, msgBody => Promise.resolve(), {sqs: config});
+        clock = sinon.useFakeTimers(new Date().setHours(13, 0, 0));
+      });
+
+      after(() => {
+        clock.restore();
+      });
+
+      it('returns a timeout of 0', () => {
+        let timeout = consumer._getVisibilityTimeout();
+        timeout.should.equal(0);
+      });
+    });
+
+  });
+
 });
