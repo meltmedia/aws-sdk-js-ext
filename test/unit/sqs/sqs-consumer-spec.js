@@ -3,6 +3,7 @@
 require('../../init-chai');
 
 const
+  _ = require('lodash'),
   error = require('../../../lib/common/error'),
   commonUtils = require('../../../lib/common/utils'),
   SqsConsumer = require('../../../lib/sqs/sqs-consumer'),
@@ -261,11 +262,11 @@ describe('SqsConsumer', () => {
 
   describe('_scheduledConsuming', () => {
     let config,
-        messages = {
-          Messages: [{Body: "{}",ReceiptHandle: 'handle1'}]
-        };
+    messages = {
+      Messages: [{Body: "{}",ReceiptHandle: 'handle1'}]
+    };
 
-    beforeEach(() => {
+    before(() => {
       config = {
         defaults: {
           consumer: {
@@ -282,55 +283,33 @@ describe('SqsConsumer', () => {
 
     context('when consumer config is not present', () => {
       before(() => {
-        delete config.defaults.consumer.scheduler;
-        consumer = new SqsConsumer({sqs: sqs}, msgBody => Promise.resolve(), {sqs: config});
+        consumer = new SqsConsumer({sqs: sqs}, msgBody => Promise.resolve(), {sqs: {}});
       });
 
       it('resolves the original data', () => {
-        sqs.receiveMessage.returns({ promise: () => Promise.resolve(messages)});
-        return sqs.receiveMessage()
-          .promise()
-          .then(data => {
-            return consumer._scheduledConsuming(data);
-          })
+        return consumer._scheduledConsuming(messages)
           .then(data => {
             data.should.deep.equal(messages);
           });
       });
-    });
-
-    it('changes the message visibility timeout to the maxVisibilityTimeout in the config', () => {
-      sqs.receiveMessage.returns({ promise: () => Promise.resolve(messages)});
-      return sqs.receiveMessage()
-        .promise()
-        .then(data => {
-          return consumer._scheduledConsuming(data);
-        })
-        .then(data => {
-          data.should.deep.equal(messages);
-        });
     });
 
     context('when consumer is not scheduled', () => {
       before(() => {
-        config.defaults.consumer.scheduler.scheduled = false;
-        consumer = new SqsConsumer({sqs: sqs}, msgBody => Promise.resolve(), {sqs: config});
+        let mockConfig = _.cloneDeep(config);
+        mockConfig.defaults.consumer.scheduler.scheduled = false;
+        consumer = new SqsConsumer({sqs: sqs}, msgBody => Promise.resolve(), {sqs: mockConfig});
       });
 
       it('resolves the original data', () => {
-        sqs.receiveMessage.returns({ promise: () => Promise.resolve(messages)});
-        return sqs.receiveMessage()
-          .promise()
-          .then(data => {
-            return consumer._scheduledConsuming(data);
-          })
+        return consumer._scheduledConsuming(messages)
           .then(data => {
             data.should.deep.equal(messages);
           });
       });
     });
 
-    context('when polling messages before the scheduled processing window', () => {
+    context('when scheduling messages before the scheduled processing window', () => {
       let clock;
 
       before(() => {
@@ -343,17 +322,14 @@ describe('SqsConsumer', () => {
       });
 
       it('resolves an empty object', () => {
-        sqs.receiveMessage.returns({ promise: () => Promise.resolve(messages)});
-        return sqs.receiveMessage()
-          .promise()
-          .then(data => consumer._scheduledConsuming(data))
+        return consumer._scheduledConsuming(messages)
           .then(data => {
             data.should.deep.equal({});
           });
       });
     });
 
-    context('when polling messages during the scheduled processing window', () => {
+    context('when scheduling messages during the scheduled processing window', () => {
       let clock;
 
       before(() => {
@@ -366,19 +342,14 @@ describe('SqsConsumer', () => {
       });
 
       it('resolves the original data', () => {
-        sqs.receiveMessage.returns({ promise: () => Promise.resolve(messages)});
-        return sqs.receiveMessage()
-          .promise()
-          .then(data => {
-            return consumer._scheduledConsuming(data);
-          })
+        return consumer._scheduledConsuming(messages)
           .then(data => {
             data.should.deep.equal(messages);
           });
       });
     });
 
-    context('when polling messages after the scheduled processing window', () => {
+    context('when scheduling messages after the scheduled processing window', () => {
       let clock;
 
       before(() => {
@@ -391,10 +362,7 @@ describe('SqsConsumer', () => {
       });
 
       it('resolves an empty object', () => {
-        sqs.receiveMessage.returns({ promise: () => Promise.resolve(messages)});
-        return sqs.receiveMessage()
-          .promise()
-          .then(data => consumer._scheduledConsuming(data))
+        return consumer._scheduledConsuming(messages)
           .then(data => {
             data.should.deep.equal({});
           });
