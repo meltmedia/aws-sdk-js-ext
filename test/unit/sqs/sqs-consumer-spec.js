@@ -16,7 +16,7 @@ const
   EXPECTED_POLL_WAIT = 12000; //ms
 
 describe('SqsConsumer', () => {
-  let consumer, sqs, schemaService, config;
+  let consumer, sqs, schemaService;
 
   beforeEach(() => {
     sqs = {
@@ -37,19 +37,6 @@ describe('SqsConsumer', () => {
       })
     };
     sinon.stub(commonUtils, 'wait').returns(Promise.resolve());
-
-    config = {
-      defaults: {
-        consumer: {
-          scheduler: {
-            scheduled: true,
-            start: '12:00:00',
-            duration: '2 hours',
-            maxVisibilityTimeout: '10 seconds'
-          }
-        }
-      }
-    };
   });
 
   afterEach(() => {
@@ -274,9 +261,25 @@ describe('SqsConsumer', () => {
   });
 
   describe('_scheduledConsuming', () => {
-    let messages = {
-          Messages: [{Body: "{}",ReceiptHandle: 'handle1'}]
-        };
+    let config,
+    messages = {
+      Messages: [{Body: "{}",ReceiptHandle: 'handle1'}]
+    };
+
+    before(() => {
+      config = {
+        defaults: {
+          consumer: {
+            scheduler: {
+              scheduled: true,
+              start: '12:00:00',
+              duration: '2 hours',
+              maxVisibilityTimeout: '10 seconds'
+            }
+          }
+        }
+      };
+    });
 
     context('when consumer config is not present', () => {
       before(() => {
@@ -368,9 +371,25 @@ describe('SqsConsumer', () => {
   });
 
   describe('_getVisibilityTimeout', () => {
-    let messages = {
+    let config,
+        messages = {
           Messages: [{Body: "{}",ReceiptHandle: 'handle1'}]
         };
+
+    beforeEach(() => {
+      config = {
+        defaults: {
+          consumer: {
+            scheduler: {
+              scheduled: true,
+              start: '12:00:00',
+              duration: '2 hours',
+              maxVisibilityTimeout: '6 hours'
+            }
+          }
+        }
+      };
+    });
 
     describe('when outside the scheduled processing window', () => {
       let clock;
@@ -401,6 +420,7 @@ describe('SqsConsumer', () => {
 
         it('returns a timeout of the difference between now and the scheduled processing window', () => {
           let timeout = consumer._getVisibilityTimeout();
+          console.log(timeout);
           timeout.should.equal(1 * 60 * 60);
         });
       });
@@ -427,9 +447,25 @@ describe('SqsConsumer', () => {
   });
 
   describe('isConsuming', () => {
-    let messages = {
+    let config,
+        messages = {
           Messages: [{Body: "{}",ReceiptHandle: 'handle1'}]
         };
+
+    before(() => {
+      config = {
+        defaults: {
+          consumer: {
+            scheduler: {
+              scheduled: true,
+              start: '12:00:00',
+              duration: '2 hours',
+              maxVisibilityTimeout: '6 hours'
+            }
+          }
+        }
+      };
+    });
 
     context('when the consumer is not scheduled', () => {
 
