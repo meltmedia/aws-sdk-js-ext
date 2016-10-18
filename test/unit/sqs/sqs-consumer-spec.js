@@ -16,7 +16,7 @@ const
   EXPECTED_POLL_WAIT = 12000; //ms
 
 describe('SqsConsumer', () => {
-  let consumer, sqs, schemaService;
+  let consumer, sqs, schemaService, config;
 
   beforeEach(() => {
     sqs = {
@@ -37,6 +37,19 @@ describe('SqsConsumer', () => {
       })
     };
     sinon.stub(commonUtils, 'wait').returns(Promise.resolve());
+
+    config = {
+      defaults: {
+        consumer: {
+          scheduler: {
+            scheduled: true,
+            start: '12:00:00',
+            duration: '2 hours',
+            maxVisibilityTimeout: '10 seconds'
+          }
+        }
+      }
+    };
   });
 
   afterEach(() => {
@@ -261,25 +274,9 @@ describe('SqsConsumer', () => {
   });
 
   describe('_scheduledConsuming', () => {
-    let config,
-    messages = {
-      Messages: [{Body: "{}",ReceiptHandle: 'handle1'}]
-    };
-
-    before(() => {
-      config = {
-        defaults: {
-          consumer: {
-            scheduler: {
-              scheduled: true,
-              start: '12:00:00',
-              duration: '2 hours',
-              maxVisibilityTimeout: '10 seconds'
-            }
-          }
-        }
-      };
-    });
+    let messages = {
+          Messages: [{Body: "{}",ReceiptHandle: 'handle1'}]
+        };
 
     context('when consumer config is not present', () => {
       before(() => {
@@ -371,25 +368,9 @@ describe('SqsConsumer', () => {
   });
 
   describe('_getVisibilityTimeout', () => {
-    let config,
-        messages = {
+    let messages = {
           Messages: [{Body: "{}",ReceiptHandle: 'handle1'}]
         };
-
-    beforeEach(() => {
-      config = {
-        defaults: {
-          consumer: {
-            scheduler: {
-              scheduled: true,
-              start: '12:00:00',
-              duration: '2 hours',
-              maxVisibilityTimeout: '6 hours'
-            }
-          }
-        }
-      };
-    });
 
     describe('when outside the scheduled processing window', () => {
       let clock;
@@ -420,7 +401,6 @@ describe('SqsConsumer', () => {
 
         it('returns a timeout of the difference between now and the scheduled processing window', () => {
           let timeout = consumer._getVisibilityTimeout();
-          console.log(timeout);
           timeout.should.equal(1 * 60 * 60);
         });
       });
@@ -441,6 +421,63 @@ describe('SqsConsumer', () => {
       it('returns a timeout of 0', () => {
         let timeout = consumer._getVisibilityTimeout();
         timeout.should.equal(0);
+      });
+    });
+
+  });
+
+  describe('isConsuming', () => {
+    let messages = {
+          Messages: [{Body: "{}",ReceiptHandle: 'handle1'}]
+        };
+
+    context('when the consumer is not scheduled', () => {
+
+      before(() => {
+        let mockConfig = _.cloneDeep(config);
+        mockConfig.defaults.consumer.scheduler.scheduled = false;
+        consumer = new SqsConsumer({sqs: sqs}, msgBody => Promise.resolve(), {sqs: mockConfig});
+      });
+
+      it('returns true', () => {
+        let isConsuming = consumer.isConsuming();
+        isConsuming.should.be.true;
+      });
+    });
+
+    context('when outside the scheduled processing window', () => {
+      let clock;
+
+      before(() => {
+        consumer = new SqsConsumer({sqs: sqs}, msgBody => Promise.resolve(), {sqs: config});
+        clock = sinon.useFakeTimers(new Date().setHours(5, 0, 0));
+      });
+
+      after(() => {
+        clock.restore();
+      });
+
+      it('returns false', () => {
+        let isConsuming = consumer.isConsuming();
+        isConsuming.should.be.false;
+      });
+    });
+
+    context('when in the scheduled processing window', () => {
+      let clock;
+
+      before(() => {
+        consumer = new SqsConsumer({sqs: sqs}, msgBody => Promise.resolve(), {sqs: config});
+        clock = sinon.useFakeTimers(new Date().setHours(13, 0, 0));
+      });
+
+      after(() => {
+        clock.restore();
+      });
+
+      it('returns true', () => {
+        let isConsuming = consumer.isConsuming();
+        isConsuming.should.be.true;
       });
     });
 
