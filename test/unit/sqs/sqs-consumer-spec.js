@@ -375,13 +375,6 @@ describe('SqsConsumer', () => {
         consumer = new SqsConsumer({sqs: sqs}, msgBody => Promise.resolve(), {sqs: config});
       });
 
-      it('resolves the original object: undefined', () => {
-        return consumer._scheduledConsuming(undefined)
-          .then(data => {
-            data.should.deep.equal(undefined);
-          });
-      });
-
       it('resolves the original object: {}', () => {
         return consumer._scheduledConsuming({})
           .then(data => {
