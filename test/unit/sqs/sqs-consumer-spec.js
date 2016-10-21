@@ -368,6 +368,27 @@ describe('SqsConsumer', () => {
           });
       });
     });
+
+    context('when there are no messages to consume', () => {
+
+      before(() => {
+        consumer = new SqsConsumer({sqs: sqs}, msgBody => Promise.resolve(), {sqs: config});
+      });
+
+      it('resolves the original object: {}', () => {
+        return consumer._scheduledConsuming({})
+          .then(data => {
+            data.should.deep.equal({});
+          });
+      });
+
+      it('resolves the original object: { Messages: [] }', () => {
+        return consumer._scheduledConsuming({Messages: []})
+          .then(data => {
+            data.should.deep.equal({Messages: []});
+          });
+      });
+    });
   });
 
   describe('_getVisibilityTimeout', () => {
@@ -420,7 +441,6 @@ describe('SqsConsumer', () => {
 
         it('returns a timeout of the difference between now and the scheduled processing window', () => {
           let timeout = consumer._getVisibilityTimeout();
-          console.log(timeout);
           timeout.should.equal(1 * 60 * 60);
         });
       });
