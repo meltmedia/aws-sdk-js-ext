@@ -376,21 +376,21 @@ describe('SqsConsumer', () => {
       });
 
       it('resolves the original object: undefined', () => {
-        consumer._scheduledConsuming(undefined)
+        return consumer._scheduledConsuming(undefined)
           .then(data => {
             data.should.deep.equal(undefined);
           });
       });
 
       it('resolves the original object: {}', () => {
-        consumer._scheduledConsuming({})
+        return consumer._scheduledConsuming({})
           .then(data => {
             data.should.deep.equal({});
           });
       });
 
       it('resolves the original object: { Messages: [] }', () => {
-        consumer._scheduledConsuming({Messages: []})
+        return consumer._scheduledConsuming({Messages: []})
           .then(data => {
             data.should.deep.equal({Messages: []});
           });
