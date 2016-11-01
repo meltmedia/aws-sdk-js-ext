@@ -1,0 +1,55 @@
+{
+  "name": "aws-sdk-ext",
+  "version": "1.0.0",
+  "description": "AWS SDK Javascript Extensions",
+  "main": "lib/index.js",
+  "scripts": {
+    "test": "npm test"
+  },
+  "files": [
+    "lib"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/meltmedia/aws-sdk-js-ext.git"
+  },
+  "keywords": [
+    "nodejs",
+    "aws",
+    "sqs",
+    "extensions"
+  ],
+  "author": "Sukrit Khera",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/meltmedia/aws-sdk-js-ext/issues"
+  },
+  "homepage": "https://github.com/meltmedia/aws-sdk-js-ext#readme",
+  "dependencies": {
+    "aws-sdk": "^2.4.13",
+    "config": "^1.21.0",
+    "es6-promisify": "^4.1.0",
+    "human-interval": "^0.1.6",
+    "js-yaml": "^3.6.1",
+    "lodash": "^4.14.2",
+    "moment": "^2.15.1",
+    "promise.prototype.finally": "^2.0.0",
+    "winston": "^2.2.0",
+    "z-schema": "^3.17.0"
+  },
+  "devDependencies": {
+    "chai": "^3.5.0",
+    "chai-as-promised": "^5.3.0",
+    "chai-properties": "^1.2.1",
+    "gulp": "^3.9.1",
+    "gulp-jshint": "^2.0.1",
+    "gulp-load-plugins": "^1.2.4",
+    "gulp-spawn-mocha": "^3.0.0",
+    "istanbul": "^0.4.4",
+    "jshint": "^2.9.2",
+    "jshint-stylish": "^2.2.0",
+    "mocha": "^3.0.2",
+    "sinon": "^1.17.5",
+    "sinon-chai": "^2.8.0"
+  }
+}

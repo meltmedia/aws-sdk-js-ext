@@ -1,0 +1,16 @@
+awsext:
+  sqs:
+    sqs-consumer-example:
+      queue:
+        prefix: 'sqs-consumer-example-'
+      sqsOptions:
+        region: us-west-2
+        # endpoint: http://localhost:9324
+      schema:
+        "id" : "#consumer-example-schema"
+        properties:
+          id:
+            type: 'number'
+        required:
+          - id
+        additionalProperties: true
