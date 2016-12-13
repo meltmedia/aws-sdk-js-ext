@@ -81,10 +81,12 @@ describe('SqsConsumer', () => {
     it('should poll and process messages from queue', () => {
       sqs.receiveMessage.returns({ promise: () => Promise.resolve({Messages: [
         {
+          MessageId: '1',
           Body: "{}",
           ReceiptHandle: 'handle1'
         },
         {
+          MessageId: '2',
           Body: "{}",
           ReceiptHandle: 'handle2'
         }
@@ -103,6 +105,7 @@ describe('SqsConsumer', () => {
       consumer.conf.schema.name = 'mock-schema';
       sqs.receiveMessage.returns({ promise: () => Promise.resolve({Messages: [
         {
+          MessageId: '1',
           Body: "{}",
           ReceiptHandle: 'handle1'
         }
@@ -118,6 +121,7 @@ describe('SqsConsumer', () => {
     it('should handle error in message processing', () => {
       sqs.receiveMessage.returns({ promise: () => Promise.resolve({Messages: [
         {
+          MessageId: '1',
           Body: "{}",
           Attributes: {
             ApproximateReceiveCount: 1
@@ -139,6 +143,7 @@ describe('SqsConsumer', () => {
     it('should handle syntax error in message processing', () => {
       sqs.receiveMessage.returns({ promise: () => Promise.resolve({Messages: [
         {
+          MessageId: '1',
           Body: "{}",
           Attributes: {
             ApproximateReceiveCount: 1
@@ -158,6 +163,7 @@ describe('SqsConsumer', () => {
     it('should handle NonRetryableError  in message processing', () => {
       sqs.receiveMessage.returns({ promise: () => Promise.resolve({Messages: [
         {
+          MessageId: '1',
           Body: "{}",
           Attributes: {
             ApproximateReceiveCount: 1
@@ -179,6 +185,7 @@ describe('SqsConsumer', () => {
 
       sqs.receiveMessage.returns({ promise: () => Promise.resolve({Messages: [
         {
+          MessageId: '1',
           Body: "{}",
           Attributes: {
             ApproximateReceiveCount: 1
@@ -197,6 +204,7 @@ describe('SqsConsumer', () => {
     it('should handle error in message deletion', () => {
       sqs.receiveMessage.returns({ promise: () => Promise.resolve({Messages: [
         {
+          MessageId: '1',
           Body: "{}",
           Attributes: {
             ApproximateReceiveCount: 1
@@ -263,7 +271,7 @@ describe('SqsConsumer', () => {
   describe('_scheduledConsuming', () => {
     let config,
     messages = {
-      Messages: [{Body: "{}",ReceiptHandle: 'handle1'}]
+      Messages: [{MessageId: '1', Body: "{}",ReceiptHandle: 'handle1'}]
     };
 
     before(() => {
@@ -394,7 +402,7 @@ describe('SqsConsumer', () => {
   describe('_getVisibilityTimeout', () => {
     let config,
         messages = {
-          Messages: [{Body: "{}",ReceiptHandle: 'handle1'}]
+          Messages: [{MessageId: '1', Body: "{}",ReceiptHandle: 'handle1'}]
         };
 
     beforeEach(() => {
@@ -469,7 +477,7 @@ describe('SqsConsumer', () => {
   describe('isConsuming', () => {
     let config,
         messages = {
-          Messages: [{Body: "{}",ReceiptHandle: 'handle1'}]
+          Messages: [{MessageId: '1', Body: "{}",ReceiptHandle: 'handle1'}]
         };
 
     before(() => {
