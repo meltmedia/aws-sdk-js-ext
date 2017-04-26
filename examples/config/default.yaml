@@ -6,6 +6,12 @@ awsext:
       sqsOptions:
         region: us-west-2
         # endpoint: http://localhost:9324
+      kmsOptions:
+        region: 'us-west-2'
+        # endpoint: http://localhost:9324
+      encryption:
+        algorithm: 'aes-256-ecb'
+        key: 'KMS key name'
       schema:
         "id" : "#consumer-example-schema"
         properties:
