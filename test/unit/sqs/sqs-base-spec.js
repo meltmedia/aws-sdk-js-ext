@@ -13,13 +13,12 @@ const
   expect = chai.expect;
 
 const
-  MOCK_QUEUE_URL = 'http://MockQueueUrl',
-  DATA = {key: 'test key', value: 'test value'},
-  ENCRYPTED_DATA = 'o9w7+YNBLNpmlzIBIL06Gf0bpy7xgn7s3EpCJvh3pPHGaNehTNv111UU9a0Bmvhl',
-  PLAINTEXT_KEY = '00000000001111111111222222222233',
-  CIPHERTEXT_BLOB = 'ciphertext blob';
+  MOCK_QUEUE_URL = 'http://MockQueueUrl';
 
-describe('SqsConsumer', () => {
+const
+  encryptFixture = require('../fixtures/encryption-fixture');
+
+describe('SqsBase', () => {
   let sqsBase, sqs, schemaService, kms, conf;
 
   before(() => {
@@ -36,20 +35,20 @@ describe('SqsConsumer', () => {
     };
     kms = {
       generateDataKey: sinon.stub().returns({
-        promise: () => Promise.resolve({Plaintext: PLAINTEXT_KEY, CiphertextBlob: CIPHERTEXT_BLOB})
+        promise: () => Promise.resolve({Plaintext: encryptFixture.PLAINTEXT_KEY, CiphertextBlob: encryptFixture.CIPHERTEXT_KEY})
       }),
       decrypt: sinon.stub().returns({
-        promise: () => Promise.resolve(PLAINTEXT_KEY)
+        promise: () => Promise.resolve(encryptFixture.PLAINTEXT_KEY)
       })
     };
     conf = {
       encryption: {
-        algorithm: 'aes-256-ecb',
-        key: 'key name'
+        algorithm: encryptFixture.ALGORITHM,
+        key: 'Key Name'
       }
     };
     sinon.stub(commonUtils, 'wait').returns(Promise.resolve());
-    sqsBase = new SqsBase({sqs: sqs, kms: kms, conf: conf}, msgBody => Promise.resolve());
+    sqsBase = new SqsBase({sqs: sqs, kms: kms, conf: conf});
   });
 
   afterEach(() => {
@@ -152,10 +151,9 @@ describe('SqsConsumer', () => {
 
     it('should validate and encrypt message', () => {
       let msgData = { test: 'test' };
-      let msgToEncrypt = { myKey: 'encrypt this pls' };
-      let encryptedPayload = { encrypted: { data: 'pdIDQFVoW+wVRzAGNPEfl2upzFizbStRhxSXauZPl8c=', key: CIPHERTEXT_BLOB }};
+      let encryptedPayload = { encrypted: encryptFixture.ENCRYPTED_PAYLOAD};
 
-      return sqsBase.sendMessage(msgData, msgToEncrypt).then(() => {
+      return sqsBase.sendMessage(msgData, encryptFixture.DATA).then(() => {
         sqs.sendMessage.args[0][0].should.eql({
           MessageBody: JSON.stringify(_.merge({}, msgData, encryptedPayload)),
           QueueUrl: MOCK_QUEUE_URL
@@ -167,10 +165,7 @@ describe('SqsConsumer', () => {
       sqsBase._encryption = undefined;
 
       let msgData = { test: 'test' };
-      let msgToEncrypt = { myKey: 'encrypt this pls' };
-      let encryptedPayload = { encrypted: { data: 'pdIDQFVoW+wVRzAGNPEfl2upzFizbStRhxSXauZPl8c=', key: CIPHERTEXT_BLOB }};
-
-      return sqsBase.sendMessage(msgData, msgToEncrypt).should.rejectedWith(error.EncryptionConfigurationError);
+      return sqsBase.sendMessage(msgData, encryptFixture.DATA).should.rejectedWith(error.EncryptionConfigurationError);
     });
   });
 
@@ -179,12 +174,16 @@ describe('SqsConsumer', () => {
 
     before(() => {
       encryptStub = sinon.stub(encryption, 'encrypt').resolves();
-      promise = sqsBase._encrypt(DATA);
+      promise = sqsBase._encrypt(encryptFixture.DATA);
+    });
+
+    after(() => {
+      encryptStub.restore();
     });
 
     it('it calls encryption.encrypt() with the correct arguments', () => {
       return promise.then(encryptedData => {
-        encryptStub.calledWithExactly(DATA, conf.encryption.algorithm, kms, conf.encryption.key);
+        encryptStub.calledWithExactly(encryptFixture.DATA, conf.encryption.algorithm, kms, conf.encryption.key);
       });
     });
   });
@@ -194,13 +193,16 @@ describe('SqsConsumer', () => {
 
     before(() => {
       decryptStub = sinon.stub(encryption, 'decrypt').resolves();
-      payload = {data: ENCRYPTED_DATA, key: PLAINTEXT_KEY};
-      promise = sqsBase._decrypt(payload);
+      promise = sqsBase._decrypt(encryptFixture.ENCRYPTED_PAYLOAD);
+    });
+
+    after(() => {
+      decryptStub.restore();
     });
 
     it('it calls encryption.decrypt() with the correct arguments', () => {
       return promise.then(encryptedData => {
-        decryptStub.calledWithExactly(payload, conf.encryption.algorithm, kms);
+        decryptStub.calledWithExactly(encryptFixture.ENCRYPTED_PAYLOAD, conf.encryption.algorithm, kms);
       });
     });
   });

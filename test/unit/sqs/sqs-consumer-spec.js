@@ -15,8 +15,11 @@ const
   EXPECTED_MESSAGE_VISIBILITY = 62, //seconds
   EXPECTED_POLL_WAIT = 12000; //ms
 
+const
+  encryptFixture = require('../fixtures/encryption-fixture');
+
 describe('SqsConsumer', () => {
-  let consumer, sqs, schemaService;
+  let consumer, sqs, kms, schemaService;
 
   beforeEach(() => {
     sqs = {
@@ -34,6 +37,14 @@ describe('SqsConsumer', () => {
       }),
       deleteMessage: sinon.stub().returns({
         promise: () => Promise.resolve({})
+      })
+    };
+    kms = {
+      generateDataKey: sinon.stub().returns({
+        promise: () => Promise.resolve({Plaintext: encryptFixture.PLAINTEXT_KEY, CiphertextBlob: encryptFixture.CIPHERTEXT_KEY})
+      }),
+      decrypt: sinon.stub().returns({
+        promise: () => Promise.resolve(encryptFixture.PLAINTEXT_KEY)
       })
     };
     sinon.stub(commonUtils, 'wait').returns(Promise.resolve());
@@ -545,6 +556,47 @@ describe('SqsConsumer', () => {
       });
     });
 
+  });
+
+  describe('_decryptMessage()', () => {
+    let conf;
+
+    before(() => {
+      conf = {
+        encryption: {
+          algorithm: encryptFixture.ALGORITHM,
+          key: 'Key Name'
+        }
+      };
+      consumer = new SqsConsumer({sqs: sqs, kms: kms, conf: conf}, msgBody => Promise.resolve());
+    });
+
+    beforeEach(() => {
+      consumer._encryption = conf.encryption;
+    });
+
+    it('returns the original message body if there is nothing to decrypt', () => {
+      let messageBody = {myProperty: 'myValue'};
+      return consumer._decryptMessage(messageBody)
+        .then(decryptedMessage => {
+          decryptedMessage.should.equal(messageBody);
+        });
+    });
+
+    it('returns the decrypted message body', () => {
+      let messageBody = {myProperty: 'myValue', encrypted: encryptFixture.ENCRYPTED_PAYLOAD};
+      return consumer._decryptMessage(messageBody)
+        .then(decryptedMessage => {
+          decryptedMessage.should.eql(_.merge({}, {myProperty: 'myValue'}, encryptFixture.DATA));
+        });
+    });
+
+    it('should throw an EncryptionConfigurationError if encryption config is not found', () => {
+      consumer._encryption = undefined;
+
+      let messageBody = {myProperty: 'myValue', encrypted: encryptFixture.ENCRYPTED_PAYLOAD};
+      return consumer._decryptMessage(messageBody).should.rejectedWith(error.EncryptionConfigurationError);
+    });
   });
 
 });
