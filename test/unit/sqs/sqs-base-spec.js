@@ -56,6 +56,8 @@ describe('SqsConsumer', () => {
     sqs.createQueue.resetHistory();
     sqs.getQueueUrl.resetHistory();
     sqs.sendMessage.resetHistory();
+
+    sqsBase._encryption = conf.encryption;
   });
 
   after(() => {
@@ -159,6 +161,16 @@ describe('SqsConsumer', () => {
           QueueUrl: MOCK_QUEUE_URL
         });
       });
+    });
+
+    it('should throw an EncryptionConfigurationError if encryption config is not found', () => {
+      sqsBase._encryption = undefined;
+
+      let msgData = { test: 'test' };
+      let msgToEncrypt = { myKey: 'encrypt this pls' };
+      let encryptedPayload = { encrypted: { data: 'pdIDQFVoW+wVRzAGNPEfl2upzFizbStRhxSXauZPl8c=', key: CIPHERTEXT_BLOB }};
+
+      return sqsBase.sendMessage(msgData, msgToEncrypt).should.rejectedWith(error.EncryptionConfigurationError);
     });
   });
 
