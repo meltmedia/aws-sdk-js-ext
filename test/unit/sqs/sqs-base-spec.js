@@ -4,6 +4,7 @@ require('../../init-chai');
 
 const
   error = require('../../../lib/common/error'),
+  encryption = require('../../../lib/common/encryption'),
   commonUtils = require('../../../lib/common/utils'),
   SqsBase = require('../../../lib/sqs/sqs-base'),
   _ = require('lodash'),
@@ -12,12 +13,16 @@ const
   expect = chai.expect;
 
 const
-  MOCK_QUEUE_URL = 'http://MockQueueUrl';
+  MOCK_QUEUE_URL = 'http://MockQueueUrl',
+  DATA = {key: 'test key', value: 'test value'},
+  ENCRYPTED_DATA = 'o9w7+YNBLNpmlzIBIL06Gf0bpy7xgn7s3EpCJvh3pPHGaNehTNv111UU9a0Bmvhl',
+  PLAINTEXT_KEY = '00000000001111111111222222222233',
+  CIPHERTEXT_BLOB = 'ciphertext blob';
 
 describe('SqsConsumer', () => {
-  let sqsBase, sqs, schemaService;
+  let sqsBase, sqs, schemaService, kms, conf;
 
-  beforeEach(() => {
+  before(() => {
     sqs = {
       createQueue: sinon.stub().returns({
         promise: () => Promise.resolve({QueueUrl: MOCK_QUEUE_URL})
@@ -29,11 +34,31 @@ describe('SqsConsumer', () => {
         promise: () => Promise.resolve()
       })
     };
+    kms = {
+      generateDataKey: sinon.stub().returns({
+        promise: () => Promise.resolve({Plaintext: PLAINTEXT_KEY, CiphertextBlob: CIPHERTEXT_BLOB})
+      }),
+      decrypt: sinon.stub().returns({
+        promise: () => Promise.resolve(PLAINTEXT_KEY)
+      })
+    };
+    conf = {
+      encryption: {
+        algorithm: 'aes-256-ecb',
+        key: 'key name'
+      }
+    };
     sinon.stub(commonUtils, 'wait').returns(Promise.resolve());
-    sqsBase = new SqsBase({sqs: sqs}, msgBody => Promise.resolve());
+    sqsBase = new SqsBase({sqs: sqs, kms: kms, conf: conf}, msgBody => Promise.resolve());
   });
 
   afterEach(() => {
+    sqs.createQueue.resetHistory();
+    sqs.getQueueUrl.resetHistory();
+    sqs.sendMessage.resetHistory();
+  });
+
+  after(() => {
     commonUtils.wait.restore();
   });
 
@@ -111,16 +136,59 @@ describe('SqsConsumer', () => {
   });
 
   describe('sendMessage', () => {
-
     it('should validate and send message', () => {
       let msgData = {
         "test": "test"
       };
-      return sqsBase.sendMessage(msgData).then( () => {
-        return sqs.sendMessage.should.be.calledWith({
+      return sqsBase.sendMessage(msgData).then(() => {
+        return sqs.sendMessage.args[0][0].should.eql({
           MessageBody: JSON.stringify(msgData),
           QueueUrl: MOCK_QUEUE_URL
         });
+      });
+    });
+
+    it('should validate and encrypt message', () => {
+      let msgData = { test: 'test' };
+      let msgToEncrypt = { myKey: 'encrypt this pls' };
+      let encryptedPayload = { encrypted: { data: 'pdIDQFVoW+wVRzAGNPEfl2upzFizbStRhxSXauZPl8c=', key: CIPHERTEXT_BLOB }};
+
+      return sqsBase.sendMessage(msgData, msgToEncrypt).then(() => {
+        sqs.sendMessage.args[0][0].should.eql({
+          MessageBody: JSON.stringify(_.merge({}, msgData, encryptedPayload)),
+          QueueUrl: MOCK_QUEUE_URL
+        });
+      });
+    });
+  });
+
+  describe('_encrypt()', () => {
+    let encryptStub, data, promise;
+
+    before(() => {
+      encryptStub = sinon.stub(encryption, 'encrypt').resolves();
+      promise = sqsBase._encrypt(DATA);
+    });
+
+    it('it calls encryption.encrypt() with the correct arguments', () => {
+      return promise.then(encryptedData => {
+        encryptStub.calledWithExactly(DATA, conf.encryption.algorithm, kms, conf.encryption.key);
+      });
+    });
+  });
+
+  describe('_decrypt()', () => {
+    let decryptStub, payload, promise;
+
+    before(() => {
+      decryptStub = sinon.stub(encryption, 'decrypt').resolves();
+      payload = {data: ENCRYPTED_DATA, key: PLAINTEXT_KEY};
+      promise = sqsBase._decrypt(payload);
+    });
+
+    it('it calls encryption.decrypt() with the correct arguments', () => {
+      return promise.then(encryptedData => {
+        decryptStub.calledWithExactly(payload, conf.encryption.algorithm, kms);
       });
     });
   });
