@@ -18,7 +18,7 @@ const
 const
   encryptFixture = require('../fixtures/encryption-fixture');
 
-describe('SqsConsumer', () => {
+describe.only('SqsConsumer', () => {
   let consumer, sqs, kms, schemaService;
 
   beforeEach(() => {
@@ -41,7 +41,10 @@ describe('SqsConsumer', () => {
     };
     kms = {
       generateDataKey: sinon.stub().returns({
-        promise: () => Promise.resolve({Plaintext: encryptFixture.PLAINTEXT_KEY, CiphertextBlob: encryptFixture.CIPHERTEXT_KEY})
+        promise: () => Promise.resolve({
+          Plaintext: encryptFixture.PLAINTEXT_KEY,
+          CiphertextBlob: encryptFixture.CIPHERTEXT_KEY
+        })
       }),
       decrypt: sinon.stub().returns({
         promise: () => Promise.resolve(encryptFixture.PLAINTEXT_KEY)
@@ -564,7 +567,6 @@ describe('SqsConsumer', () => {
     before(() => {
       conf = {
         encryption: {
-          algorithm: encryptFixture.ALGORITHM,
           key: 'Key Name'
         }
       };

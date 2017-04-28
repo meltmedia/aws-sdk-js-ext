@@ -6,6 +6,7 @@ const
   error = require('../../../lib/common/error'),
   encryption = require('../../../lib/common/encryption'),
   commonUtils = require('../../../lib/common/utils'),
+  CryptoJS = require('crypto-js'),
   SqsBase = require('../../../lib/sqs/sqs-base'),
   _ = require('lodash'),
   sinon = require('sinon'),
@@ -35,7 +36,10 @@ describe('SqsBase', () => {
     };
     kms = {
       generateDataKey: sinon.stub().returns({
-        promise: () => Promise.resolve({Plaintext: encryptFixture.PLAINTEXT_KEY, CiphertextBlob: encryptFixture.CIPHERTEXT_KEY})
+        promise: () => Promise.resolve({
+          Plaintext: encryptFixture.PLAINTEXT_KEY,
+          CiphertextBlob: encryptFixture.CIPHERTEXT_KEY
+        })
       }),
       decrypt: sinon.stub().returns({
         promise: () => Promise.resolve(encryptFixture.PLAINTEXT_KEY)
@@ -154,10 +158,14 @@ describe('SqsBase', () => {
       let encryptedPayload = { encrypted: encryptFixture.ENCRYPTED_PAYLOAD};
 
       return sqsBase.sendMessage(msgData, encryptFixture.DATA).then(() => {
-        sqs.sendMessage.args[0][0].should.eql({
-          MessageBody: JSON.stringify(_.merge({}, msgData, encryptedPayload)),
-          QueueUrl: MOCK_QUEUE_URL
-        });
+        let message = sqs.sendMessage.args[0][0];
+        let messageBody = JSON.parse(message.MessageBody);
+        messageBody.should.have.property('encrypted');
+
+        // Decrypt and check that it's the same as the original data
+        let bytes = CryptoJS.AES.decrypt(messageBody.encrypted.data, encryptFixture.PLAINTEXT_KEY);
+        let decryptedData = JSON.parse(bytes.toString(CryptoJS.enc.Utf8));
+        return decryptedData.should.eql(encryptFixture.DATA);
       });
     });
 
@@ -183,7 +191,7 @@ describe('SqsBase', () => {
 
     it('it calls encryption.encrypt() with the correct arguments', () => {
       return promise.then(encryptedData => {
-        encryptStub.calledWithExactly(encryptFixture.DATA, conf.encryption.algorithm, kms, conf.encryption.key);
+        encryptStub.calledWithExactly(encryptFixture.DATA, kms, conf.encryption.key).should.be.true;
       });
     });
   });
@@ -202,7 +210,7 @@ describe('SqsBase', () => {
 
     it('it calls encryption.decrypt() with the correct arguments', () => {
       return promise.then(encryptedData => {
-        decryptStub.calledWithExactly(encryptFixture.ENCRYPTED_PAYLOAD, conf.encryption.algorithm, kms);
+        decryptStub.calledWith(encryptFixture.ENCRYPTED_PAYLOAD, kms).should.be.true;
       });
     });
   });
