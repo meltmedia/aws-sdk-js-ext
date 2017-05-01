@@ -4,14 +4,14 @@ awsext:
       queue:
         prefix: 'sqs-consumer-example-'
       sqsOptions:
-        region: us-west-2
+        region: 'us-west-2'
         # endpoint: http://localhost:9324
       kmsOptions:
-        region: 'us-west-2'
+        region: 'us-east-1'
         # endpoint: http://localhost:9324
       encryption:
         algorithm: 'aes-256-ecb'
-        key: 'KMS key name'
+        key: 'alias/picard-sqs'
       schema:
         "id" : "#consumer-example-schema"
         properties:
