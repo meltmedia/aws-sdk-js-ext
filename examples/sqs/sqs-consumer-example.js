@@ -7,7 +7,7 @@ const SqsConsumer = require('aws-sdk-ext').sqs.SqsConsumer,
   config = require('config'),
   utils = require('aws-sdk-ext').utils;
 
-class SqsConsumerExample extends SqsConsumer{
+class SqsConsumerExample extends SqsConsumer {
   handle(msgBody) {
     winston.info(`SqsExample::${this.name}:: Handled message: ${JSON.stringify(msgBody)}`);
   }
