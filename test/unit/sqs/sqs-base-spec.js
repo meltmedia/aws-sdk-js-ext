@@ -4,7 +4,7 @@ require('../../init-chai');
 
 const
   error = require('../../../lib/common/error'),
-  encryption = require('../../../lib/common/encryption'),
+  EncryptionUtil = require('../../../lib/common/encryption'),
   commonUtils = require('../../../lib/common/utils'),
   CryptoJS = require('crypto-js'),
   SqsBase = require('../../../lib/sqs/sqs-base'),
@@ -20,7 +20,7 @@ const
   encryptFixture = require('../fixtures/encryption-fixture');
 
 describe('SqsBase', () => {
-  let sqsBase, sqs, schemaService, kms, conf;
+  let sqsBase, sqs, schemaService, kms, conf, encryption;
 
   before(() => {
     sqs = {
@@ -37,22 +37,24 @@ describe('SqsBase', () => {
     kms = {
       generateDataKey: sinon.stub().returns({
         promise: () => Promise.resolve({
-          Plaintext: encryptFixture.PLAINTEXT_KEY,
-          CiphertextBlob: encryptFixture.CIPHERTEXT_KEY
+          Plaintext: Buffer.from(encryptFixture.PLAINTEXT_KEY, 'hex'),
+          CiphertextBlob: Buffer.from(encryptFixture.CIPHERTEXT_KEY, 'hex')
         })
       }),
       decrypt: sinon.stub().returns({
-        promise: () => Promise.resolve(encryptFixture.PLAINTEXT_KEY)
+        promise: () => Promise.resolve({
+          Plaintext: Buffer.from(encryptFixture.PLAINTEXT_KEY, 'hex')
+        })
       })
     };
+    encryption = new EncryptionUtil({key: 'Key Name'}, kms);
     conf = {
       encryption: {
-        algorithm: encryptFixture.ALGORITHM,
         key: 'Key Name'
       }
     };
     sinon.stub(commonUtils, 'wait').returns(Promise.resolve());
-    sqsBase = new SqsBase({sqs: sqs, kms: kms, conf: conf});
+    sqsBase = new SqsBase({sqs: sqs, encryptionUtil: encryption});
   });
 
   afterEach(() => {
@@ -170,10 +172,10 @@ describe('SqsBase', () => {
     });
 
     it('should throw an EncryptionConfigurationError if encryption config is not found', () => {
-      sqsBase._encryption = undefined;
-
-      let msgData = { test: 'test' };
-      return sqsBase.sendMessage(msgData, encryptFixture.DATA).should.rejectedWith(error.EncryptionConfigurationError);
+      let fn = () => {
+        let newSqsBase = new SqsBase({sqs: sqs, kms: kms, conf: {}});
+      };
+      fn.should.throw(error.EncryptionConfigurationError);
     });
   });
 
@@ -189,9 +191,9 @@ describe('SqsBase', () => {
       encryptStub.restore();
     });
 
-    it('it calls encryption.encrypt() with the correct arguments', () => {
+    it('it calls encryptionUtil.encrypt() with the correct arguments', () => {
       return promise.then(encryptedData => {
-        encryptStub.calledWithExactly(encryptFixture.DATA, kms, conf.encryption.key).should.be.true;
+        encryptStub.calledWithExactly(encryptFixture.DATA).should.be.true;
       });
     });
   });
@@ -208,9 +210,9 @@ describe('SqsBase', () => {
       decryptStub.restore();
     });
 
-    it('it calls encryption.decrypt() with the correct arguments', () => {
+    it('it calls encryptionUtil.decrypt() with the correct arguments', () => {
       return promise.then(encryptedData => {
-        decryptStub.calledWith(encryptFixture.ENCRYPTED_PAYLOAD, kms).should.be.true;
+        decryptStub.calledWith(encryptFixture.ENCRYPTED_PAYLOAD).should.be.true;
       });
     });
   });

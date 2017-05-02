@@ -7,36 +7,39 @@ require('../../init-chai');
 const
   CryptoJS = require('crypto-js'),
   encryptFixture = require('../fixtures/encryption-fixture'),
-  encryption = require('../../../lib/common/encryption'),
+  EncryptionUtil = require('../../../lib/common/encryption'),
   KMS = require('aws-sdk').KMS,
   sinon = require('sinon');
 
-describe('Encryption', () => {
-  let kms;
+describe('EncryptionUtil', () => {
+  let encryption, kms;
 
   before(() => {
     kms = {
       generateDataKey: sinon.stub().returns({
         promise: () => Promise.resolve({
-          Plaintext: encryptFixture.PLAINTEXT_KEY,
-          CiphertextBlob: encryptFixture.CIPHERTEXT_KEY
+          Plaintext: Buffer.from(encryptFixture.PLAINTEXT_KEY, 'hex'),
+          CiphertextBlob: Buffer.from(encryptFixture.CIPHERTEXT_KEY, 'hex')
         })
       }),
       decrypt: sinon.stub().returns({
-        promise: () => Promise.resolve(encryptFixture.PLAINTEXT_KEY)
+        promise: () => Promise.resolve({
+          Plaintext: Buffer.from(encryptFixture.PLAINTEXT_KEY, 'hex')
+        })
       })
     };
+    encryption = new EncryptionUtil({key: 'Key Name'}, kms);
   });
 
   describe('encrypt()', () => {
     let promise;
 
     before(() => {
-      promise = encryption.encrypt(encryptFixture.DATA, kms, 'KeyName');
+      promise = encryption.encrypt(encryptFixture.DATA);
     });
 
     it('calls KMS.generateDataKey() with the correct arguments', () => {
-      let argument = { KeyId: 'KeyName', KeySpec: 'AES_256' };
+      let argument = { KeyId: 'Key Name', KeySpec: 'AES_256' };
       return promise.then(payload => {
         kms.generateDataKey.args[0][0].should.eql(argument);
       });
@@ -44,7 +47,7 @@ describe('Encryption', () => {
 
     it('returns a different encrypted data string on consecutive encrypts', () => {
       return promise.then(payload => {
-        return encryption.encrypt(encryptFixture.DATA, kms, 'KeyName')
+        return encryption.encrypt(encryptFixture.DATA)
           .then(otherPayload => {
             payload.data.should.not.equal(otherPayload.data);
           });
@@ -79,20 +82,22 @@ describe('Encryption', () => {
     let payload, promise;
 
     before(() => {
-      promise = encryption.decrypt(encryptFixture.ENCRYPTED_PAYLOAD, kms);
+      promise = encryption.decrypt(encryptFixture.ENCRYPTED_PAYLOAD);
     });
 
     it('calls KMS.decrypt() with the correct arguments', () => {
-      let argument = {CiphertextBlob: encryptFixture.CIPHERTEXT_KEY};
-      return promise.then(payload => {
+      let argument = {CiphertextBlob: Buffer.from(encryptFixture.CIPHERTEXT_KEY, 'hex')};
+      return promise.then(decryptedData => {
         kms.decrypt.args[0][0].should.eql(argument);
       });
     });
 
     it('returns the correct decrypted data', () => {
-      return promise.then(decryptedData => {
-        decryptedData.should.eql(encryptFixture.DATA);
-      });
+      return encryption.encrypt(encryptFixture.DATA)
+        .then(payload => { return encryption.decrypt(payload); })
+        .then(decryptedData => {
+          decryptedData.should.eql(encryptFixture.DATA);
+        });
     });
   });
 });

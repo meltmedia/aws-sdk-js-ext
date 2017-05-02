@@ -18,8 +18,8 @@ const
 const
   encryptFixture = require('../fixtures/encryption-fixture');
 
-describe.only('SqsConsumer', () => {
-  let consumer, sqs, kms, schemaService;
+describe('SqsConsumer', () => {
+  let consumer, sqs, kms, conf, schemaService;
 
   beforeEach(() => {
     sqs = {
@@ -42,13 +42,20 @@ describe.only('SqsConsumer', () => {
     kms = {
       generateDataKey: sinon.stub().returns({
         promise: () => Promise.resolve({
-          Plaintext: encryptFixture.PLAINTEXT_KEY,
-          CiphertextBlob: encryptFixture.CIPHERTEXT_KEY
+          Plaintext: Buffer.from(encryptFixture.PLAINTEXT_KEY, 'hex'),
+          CiphertextBlob: Buffer.from(encryptFixture.CIPHERTEXT_KEY, 'hex')
         })
       }),
       decrypt: sinon.stub().returns({
-        promise: () => Promise.resolve(encryptFixture.PLAINTEXT_KEY)
+        promise: () => Promise.resolve({
+          Plaintext: Buffer.from(encryptFixture.PLAINTEXT_KEY, 'hex')
+        })
       })
+    };
+    conf = {
+      encryption: {
+        key: 'Key Name'
+      }
     };
     sinon.stub(commonUtils, 'wait').returns(Promise.resolve());
   });
@@ -59,7 +66,7 @@ describe.only('SqsConsumer', () => {
 
   describe('start', () => {
     beforeEach(() => {
-      consumer = new SqsConsumer({sqs: sqs}, msgBody => Promise.resolve());
+      consumer = new SqsConsumer({sqs: sqs, kms: kms, conf: conf}, msgBody => Promise.resolve());
       sinon.stub(consumer, '_checkPoll').onFirstCall().returns(true).onSecondCall().returns(false);
     });
 
@@ -248,7 +255,7 @@ describe.only('SqsConsumer', () => {
 
   describe('checkPoll', () => {
     beforeEach(() => {
-      consumer = new SqsConsumer({sqs: sqs}, msgBody => Promise.resolve());
+      consumer = new SqsConsumer({sqs: sqs, kms: kms, conf: conf}, msgBody => Promise.resolve());
     });
 
     it('should return false if queueUrl is not initialized', () => {
@@ -272,7 +279,7 @@ describe.only('SqsConsumer', () => {
 
   describe('stop', () => {
     beforeEach(() => {
-      consumer = new SqsConsumer({sqs: sqs}, msgBody => Promise.resolve());
+      consumer = new SqsConsumer({sqs: sqs, kms: kms, conf: conf}, msgBody => Promise.resolve());
     });
 
     it('should stop polling', () => {
@@ -305,7 +312,7 @@ describe.only('SqsConsumer', () => {
 
     context('when consumer config is not present', () => {
       before(() => {
-        consumer = new SqsConsumer({sqs: sqs}, msgBody => Promise.resolve(), {sqs: {}});
+        consumer = new SqsConsumer({sqs: sqs, kms: kms, conf: conf}, msgBody => Promise.resolve(), {sqs: {}});
       });
 
       it('resolves the original data', () => {
@@ -320,7 +327,7 @@ describe.only('SqsConsumer', () => {
       before(() => {
         let mockConfig = _.cloneDeep(config);
         mockConfig.defaults.consumer.scheduler.scheduled = false;
-        consumer = new SqsConsumer({sqs: sqs}, msgBody => Promise.resolve(), {sqs: mockConfig});
+        consumer = new SqsConsumer({sqs: sqs, kms: kms, conf: conf}, msgBody => Promise.resolve(), {sqs: mockConfig});
       });
 
       it('resolves the original data', () => {
@@ -335,7 +342,7 @@ describe.only('SqsConsumer', () => {
       let clock;
 
       before(() => {
-        consumer = new SqsConsumer({sqs: sqs}, msgBody => Promise.resolve(), {sqs: config});
+        consumer = new SqsConsumer({sqs: sqs, kms: kms, conf: conf}, msgBody => Promise.resolve(), {sqs: config});
         clock = sinon.useFakeTimers(new Date().setHours(9, 0, 0));
       });
 
@@ -355,7 +362,7 @@ describe.only('SqsConsumer', () => {
       let clock;
 
       before(() => {
-        consumer = new SqsConsumer({sqs: sqs}, msgBody => Promise.resolve(), {sqs: config});
+        consumer = new SqsConsumer({sqs: sqs, kms: kms, conf: conf}, msgBody => Promise.resolve(), {sqs: config});
         clock = sinon.useFakeTimers(new Date().setHours(13, 0, 0));
       });
 
@@ -375,7 +382,7 @@ describe.only('SqsConsumer', () => {
       let clock;
 
       before(() => {
-        consumer = new SqsConsumer({sqs: sqs}, msgBody => Promise.resolve(), {sqs: config});
+        consumer = new SqsConsumer({sqs: sqs, kms: kms, conf: conf}, msgBody => Promise.resolve(), {sqs: config});
         clock = sinon.useFakeTimers(new Date().setHours(16, 0, 0));
       });
 
@@ -394,7 +401,7 @@ describe.only('SqsConsumer', () => {
     context('when there are no messages to consume', () => {
 
       before(() => {
-        consumer = new SqsConsumer({sqs: sqs}, msgBody => Promise.resolve(), {sqs: config});
+        consumer = new SqsConsumer({sqs: sqs, kms: kms, conf: conf}, msgBody => Promise.resolve(), {sqs: config});
       });
 
       it('resolves the original object: {}', () => {
@@ -438,7 +445,7 @@ describe.only('SqsConsumer', () => {
       let clock;
 
       beforeEach(() => {
-        consumer = new SqsConsumer({sqs: sqs}, msgBody => Promise.resolve(), {sqs: config});
+        consumer = new SqsConsumer({sqs: sqs, kms: kms, conf: conf}, msgBody => Promise.resolve(), {sqs: config});
       });
 
       afterEach(() => {
@@ -472,7 +479,7 @@ describe.only('SqsConsumer', () => {
       let clock;
 
       before(() => {
-        consumer = new SqsConsumer({sqs: sqs}, msgBody => Promise.resolve(), {sqs: config});
+        consumer = new SqsConsumer({sqs: sqs, kms: kms, conf: conf}, msgBody => Promise.resolve(), {sqs: config});
         clock = sinon.useFakeTimers(new Date().setHours(13, 0, 0));
       });
 
@@ -514,7 +521,7 @@ describe.only('SqsConsumer', () => {
       before(() => {
         let mockConfig = _.cloneDeep(config);
         mockConfig.defaults.consumer.scheduler.scheduled = false;
-        consumer = new SqsConsumer({sqs: sqs}, msgBody => Promise.resolve(), {sqs: mockConfig});
+        consumer = new SqsConsumer({sqs: sqs, kms: kms, conf: conf}, msgBody => Promise.resolve(), {sqs: mockConfig});
       });
 
       it('returns true', () => {
@@ -527,7 +534,7 @@ describe.only('SqsConsumer', () => {
       let clock;
 
       before(() => {
-        consumer = new SqsConsumer({sqs: sqs}, msgBody => Promise.resolve(), {sqs: config});
+        consumer = new SqsConsumer({sqs: sqs, kms: kms, conf: conf}, msgBody => Promise.resolve(), {sqs: config});
         clock = sinon.useFakeTimers(new Date().setHours(5, 0, 0));
       });
 
@@ -545,7 +552,7 @@ describe.only('SqsConsumer', () => {
       let clock;
 
       before(() => {
-        consumer = new SqsConsumer({sqs: sqs}, msgBody => Promise.resolve(), {sqs: config});
+        consumer = new SqsConsumer({sqs: sqs, kms: kms, conf: conf}, msgBody => Promise.resolve(), {sqs: config});
         clock = sinon.useFakeTimers(new Date().setHours(13, 0, 0));
       });
 
@@ -591,13 +598,6 @@ describe.only('SqsConsumer', () => {
         .then(decryptedMessage => {
           decryptedMessage.should.eql(_.merge({}, {myProperty: 'myValue'}, encryptFixture.DATA));
         });
-    });
-
-    it('should throw an EncryptionConfigurationError if encryption config is not found', () => {
-      consumer._encryption = undefined;
-
-      let messageBody = {myProperty: 'myValue', encrypted: encryptFixture.ENCRYPTED_PAYLOAD};
-      return consumer._decryptMessage(messageBody).should.rejectedWith(error.EncryptionConfigurationError);
     });
   });
 
