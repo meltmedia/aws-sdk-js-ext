@@ -27,7 +27,7 @@ const consumer = new SqsConsumerExample({
 
 consumer.on('running', () => {
   winston.info("SqsExample:: Sending test message");
-  return consumer.sendMessage({"id": 1, "test": "test"}, {"secretKey": "Secret Value"})
+  return consumer.sendMessage({"id": 1, "test": "test"} /*, {"secretKey": "Secret Value"} */)
     .catch(err => {
       winston.error(err);
       throw err;
