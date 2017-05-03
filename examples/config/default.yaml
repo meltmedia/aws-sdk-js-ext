@@ -10,7 +10,7 @@ awsext:
         region: 'us-east-1'
         # endpoint: http://localhost:9324
       encryption:
-        key: 'alias/picard-sqs'
+        key: 'alias/sqs-example'
       schema:
         "id" : "#consumer-example-schema"
         properties:
