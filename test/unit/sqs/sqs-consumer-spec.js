@@ -6,7 +6,7 @@ const
   _ = require('lodash'),
   error = require('../../../lib/common/error'),
   commonUtils = require('../../../lib/common/utils'),
-  SqsConsumer = require('../../../lib/sqs/sqs-consumer'),
+  SqsConsumer = require('../../../lib/sqs').SqsConsumer,
   sinon = require('sinon'),
   chai = require("chai");
 

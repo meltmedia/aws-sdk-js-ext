@@ -7,7 +7,7 @@ const
   EncryptionUtil = require('../../../lib/common/encryption'),
   commonUtils = require('../../../lib/common/utils'),
   CryptoJS = require('crypto-js'),
-  SqsBase = require('../../../lib/sqs/sqs-base'),
+  SqsBase = require('../../../lib/sqs').SqsBase,
   _ = require('lodash'),
   sinon = require('sinon'),
   chai = require("chai"),
@@ -20,7 +20,7 @@ const
   encryptFixture = require('../fixtures/encryption-fixture');
 
 describe('SqsBase', () => {
-  let sqsBase, sqs, schemaService, kms, conf, encryption;
+  let sqsBase, sqs, kms, conf, encryption;
 
   before(() => {
     sqs = {
@@ -31,6 +31,9 @@ describe('SqsBase', () => {
         promise: () => Promise.resolve({QueueUrl: MOCK_QUEUE_URL})
       }),
       sendMessage: sinon.stub().returns({
+        promise: () => Promise.resolve()
+      }),
+      deleteQueue: sinon.stub().returns({
         promise: () => Promise.resolve()
       })
     };
@@ -215,5 +218,21 @@ describe('SqsBase', () => {
         decryptStub.calledWith(encryptFixture.ENCRYPTED_PAYLOAD).should.be.true;
       });
     });
+  });
+
+  describe('deleteQueue', () => {
+
+    it('should delete the initialized queue', () => {
+      sqsBase._queueUrl = MOCK_QUEUE_URL;
+
+      return sqsBase.deleteQueue().then(() => {
+        expect(sqsBase._queueUrl).to.be.null;
+        sqs.deleteQueue.should.be.calledWithExactly({
+          QueueUrl: MOCK_QUEUE_URL
+        });
+      });
+    });
+
+
   });
 });
