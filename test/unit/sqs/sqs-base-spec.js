@@ -64,6 +64,7 @@ describe('SqsBase', () => {
     sqs.createQueue.resetHistory();
     sqs.getQueueUrl.resetHistory();
     sqs.sendMessage.resetHistory();
+    sqs.deleteQueue.resetHistory();
 
     sqsBase._encryption = conf.encryption;
   });
@@ -230,6 +231,13 @@ describe('SqsBase', () => {
         sqs.deleteQueue.should.be.calledWithExactly({
           QueueUrl: MOCK_QUEUE_URL
         });
+      });
+    });
+
+    it('should not delete the non initialized queue', () => {
+      return sqsBase.deleteQueue().then(() => {
+        expect(sqsBase._queueUrl).to.be.null;
+        sqs.deleteQueue.should.not.be.called;
       });
     });
 
