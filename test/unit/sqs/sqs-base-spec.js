@@ -8,7 +8,6 @@ const
   commonUtils = require('../../../lib/common/utils'),
   CryptoJS = require('crypto-js'),
   SqsBase = require('../../../lib/sqs').SqsBase,
-  _ = require('lodash'),
   sinon = require('sinon'),
   chai = require("chai"),
   expect = chai.expect;
@@ -23,6 +22,14 @@ describe('SqsBase', () => {
   let sqsBase, sqs, kms, conf, encryption;
 
   before(() => {
+    sinon.stub(commonUtils, 'wait').returns(Promise.resolve());
+  });
+
+  after(() => {
+    commonUtils.wait.restore();
+  });
+
+  beforeEach(() => {
     sqs = {
       createQueue: sinon.stub().returns({
         promise: () => Promise.resolve({QueueUrl: MOCK_QUEUE_URL})
@@ -34,6 +41,9 @@ describe('SqsBase', () => {
         promise: () => Promise.resolve()
       }),
       deleteQueue: sinon.stub().returns({
+        promise: () => Promise.resolve()
+      }),
+      purgeQueue: sinon.stub().returns({
         promise: () => Promise.resolve()
       })
     };
@@ -56,22 +66,11 @@ describe('SqsBase', () => {
         key: 'Key Name'
       }
     };
-    sinon.stub(commonUtils, 'wait').returns(Promise.resolve());
+
     sqsBase = new SqsBase({sqs: sqs, encryptionUtil: encryption});
   });
 
-  afterEach(() => {
-    sqs.createQueue.resetHistory();
-    sqs.getQueueUrl.resetHistory();
-    sqs.sendMessage.resetHistory();
-    sqs.deleteQueue.resetHistory();
 
-    sqsBase._encryption = conf.encryption;
-  });
-
-  after(() => {
-    commonUtils.wait.restore();
-  });
 
   describe('init', () => {
     it('should initialize queue url for existing queue', () => {
@@ -231,6 +230,21 @@ describe('SqsBase', () => {
       return sqsBase.deleteQueue().then(() => {
         expect(sqsBase._queueUrl).to.be.null;
         sqs.deleteQueue.should.not.be.called;
+      });
+    });
+
+
+  });
+
+  describe('purgeQueue', () => {
+
+    it('should purge message from the queue', () => {
+      sqsBase._queueUrl = MOCK_QUEUE_URL;
+
+      return sqsBase.purgeQueue().then(() => {
+        sqs.purgeQueue.should.be.calledWithExactly({
+          QueueUrl: MOCK_QUEUE_URL
+        });
       });
     });
 
