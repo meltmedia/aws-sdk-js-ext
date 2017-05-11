@@ -174,13 +174,6 @@ describe('SqsBase', () => {
         return decryptedData.should.eql(encryptFixture.DATA);
       });
     });
-
-    it('should throw an EncryptionConfigurationError if encryption config is not found', () => {
-      let fn = () => {
-        let newSqsBase = new SqsBase({sqs: sqs, kms: kms, conf: {}});
-      };
-      fn.should.throw(error.EncryptionConfigurationError);
-    });
   });
 
   describe('_encrypt()', () => {
@@ -196,7 +189,7 @@ describe('SqsBase', () => {
     });
 
     it('it calls encryptionUtil.encrypt() with the correct arguments', () => {
-      return promise.then(encryptedData => {
+      return promise.then(() => {
         encryptStub.calledWithExactly(encryptFixture.DATA).should.be.true;
       });
     });

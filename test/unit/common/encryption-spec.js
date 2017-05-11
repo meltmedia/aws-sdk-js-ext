@@ -54,6 +54,12 @@ describe('EncryptionUtil', () => {
       });
     });
 
+    it('should throw error when encryption key not set', () => {
+      return new EncryptionUtil()
+        .encrypt(encryptFixture.DATA)
+        .should.eventually.be.rejectedWith(Error);
+    });
+
     describe('the return object', () => {
       it('has the correct properties', () => {
         return promise.then(payload => {
@@ -79,7 +85,7 @@ describe('EncryptionUtil', () => {
   });
 
   describe('decrypt()', () => {
-    let payload, promise;
+    let promise;
 
     before(() => {
       promise = encryption.decrypt(encryptFixture.ENCRYPTED_PAYLOAD);
