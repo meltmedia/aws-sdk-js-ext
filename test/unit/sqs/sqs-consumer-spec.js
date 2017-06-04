@@ -1,4 +1,4 @@
-"use strict";
+'use strict';
 
 require('../../init-chai');
 
@@ -8,7 +8,8 @@ const
   commonUtils = require('../../../lib/common/utils'),
   SqsConsumer = require('../../../lib/sqs').SqsConsumer,
   sinon = require('sinon'),
-  chai = require("chai");
+  chai = require('chai'),
+  should = chai.should();
 
 const
   MOCK_QUEUE_URL = 'http://MockQueueUrl',
@@ -19,7 +20,7 @@ const
   encryptFixture = require('../fixtures/encryption-fixture');
 
 describe('SqsConsumer', () => {
-  let consumer, sqs, kms, conf, schemaService;
+  let consumer, sqs, kms, conf;
 
   beforeEach(() => {
     sqs = {
@@ -103,12 +104,12 @@ describe('SqsConsumer', () => {
       sqs.receiveMessage.returns({ promise: () => Promise.resolve({Messages: [
         {
           MessageId: '1',
-          Body: "{}",
+          Body: '{}',
           ReceiptHandle: 'handle1'
         },
         {
           MessageId: '2',
-          Body: "{}",
+          Body: '{}',
           ReceiptHandle: 'handle2'
         }
       ]})});
@@ -127,7 +128,7 @@ describe('SqsConsumer', () => {
       sqs.receiveMessage.returns({ promise: () => Promise.resolve({Messages: [
         {
           MessageId: '1',
-          Body: "{}",
+          Body: '{}',
           ReceiptHandle: 'handle1'
         }
       ]})});
@@ -143,7 +144,7 @@ describe('SqsConsumer', () => {
       sqs.receiveMessage.returns({ promise: () => Promise.resolve({Messages: [
         {
           MessageId: '1',
-          Body: "{}",
+          Body: '{}',
           Attributes: {
             ApproximateReceiveCount: 1
           },
@@ -155,7 +156,7 @@ describe('SqsConsumer', () => {
         sqs.deleteMessage.should.not.be.called;
         sqs.changeMessageVisibility.should.be.calledWith({
           QueueUrl: MOCK_QUEUE_URL,
-          ReceiptHandle: "handle1",
+          ReceiptHandle: 'handle1',
           VisibilityTimeout: EXPECTED_MESSAGE_VISIBILITY });
         commonUtils.wait.should.be.calledWith(EXPECTED_POLL_WAIT);
       });
@@ -165,7 +166,7 @@ describe('SqsConsumer', () => {
       sqs.receiveMessage.returns({ promise: () => Promise.resolve({Messages: [
         {
           MessageId: '1',
-          Body: "{}",
+          Body: '{}',
           Attributes: {
             ApproximateReceiveCount: 1
           },
@@ -185,7 +186,7 @@ describe('SqsConsumer', () => {
       sqs.receiveMessage.returns({ promise: () => Promise.resolve({Messages: [
         {
           MessageId: '1',
-          Body: "{}",
+          Body: '{}',
           Attributes: {
             ApproximateReceiveCount: 1
           },
@@ -207,7 +208,7 @@ describe('SqsConsumer', () => {
       sqs.receiveMessage.returns({ promise: () => Promise.resolve({Messages: [
         {
           MessageId: '1',
-          Body: "{}",
+          Body: '{}',
           Attributes: {
             ApproximateReceiveCount: 1
           },
@@ -226,19 +227,19 @@ describe('SqsConsumer', () => {
       sqs.receiveMessage.returns({ promise: () => Promise.resolve({Messages: [
         {
           MessageId: '1',
-          Body: "{}",
+          Body: '{}',
           Attributes: {
             ApproximateReceiveCount: 1
           },
           ReceiptHandle: 'handle1'
         }
       ]})});
-      sqs.deleteMessage.returns({ promise: Promise.reject(new Error('MockError during deletion'))});
+      sqs.deleteMessage.returns({ promise: () => Promise.reject(new Error('MockError during deletion'))});
       return consumer.start(true).then(()=>{
         sqs.deleteMessage.should.be.calledOnce;
         sqs.changeMessageVisibility.should.be.calledWith({
           QueueUrl: MOCK_QUEUE_URL,
-          ReceiptHandle: "handle1",
+          ReceiptHandle: 'handle1',
           VisibilityTimeout: EXPECTED_MESSAGE_VISIBILITY });
         commonUtils.wait.should.be.calledWith(EXPECTED_POLL_WAIT);
       });
@@ -280,19 +281,21 @@ describe('SqsConsumer', () => {
   describe('stop', () => {
     beforeEach(() => {
       consumer = new SqsConsumer({sqs: sqs, kms: kms, conf: conf}, msgBody => Promise.resolve());
+      consumer.start();
     });
 
     it('should stop polling', () => {
-      consumer._running=true;
-      consumer.stop();
-      consumer._running.should.be.false;
+      return consumer.stop().then(() => {
+        consumer._running.should.be.false;
+        should.not.exist(consumer._queueUrl);
+      });
     });
   });
 
   describe('_scheduledConsuming', () => {
     let config,
     messages = {
-      Messages: [{MessageId: '1', Body: "{}",ReceiptHandle: 'handle1'}]
+      Messages: [{MessageId: '1', Body: '{}',ReceiptHandle: 'handle1'}]
     };
 
     before(() => {
@@ -423,7 +426,7 @@ describe('SqsConsumer', () => {
   describe('_getVisibilityTimeout', () => {
     let config,
         messages = {
-          Messages: [{MessageId: '1', Body: "{}",ReceiptHandle: 'handle1'}]
+          Messages: [{MessageId: '1', Body: '{}',ReceiptHandle: 'handle1'}]
         };
 
     beforeEach(() => {
@@ -498,7 +501,7 @@ describe('SqsConsumer', () => {
   describe('isConsuming', () => {
     let config,
         messages = {
-          Messages: [{MessageId: '1', Body: "{}",ReceiptHandle: 'handle1'}]
+          Messages: [{MessageId: '1', Body: '{}',ReceiptHandle: 'handle1'}]
         };
 
     before(() => {
