@@ -203,7 +203,7 @@ describe('SqsConsumer', () => {
     });
 
     it('should handle validation error during message processing', () => {
-      consumer.conf.schema = '{"type": "array"}';
+      consumer.conf.schema = {type: 'array'};
 
       sqs.receiveMessage.returns({ promise: () => Promise.resolve({Messages: [
         {
