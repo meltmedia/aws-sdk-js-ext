@@ -13,6 +13,7 @@ const
 
 const
   MOCK_QUEUE_URL = 'http://MockQueueUrl',
+  MOCK_MESSAGE_WITH_ID = {MessageId: 'MOCK-MESSAGE-ID'},
   EXPECTED_MESSAGE_VISIBILITY = 62, //seconds
   EXPECTED_POLL_WAIT = 12000; //ms
 
@@ -589,7 +590,7 @@ describe('SqsConsumer', () => {
 
     it('returns the original message body if there is nothing to decrypt', () => {
       let messageBody = {myProperty: 'myValue'};
-      return consumer._decryptMessage(messageBody)
+      return consumer._decryptMessage(messageBody, MOCK_MESSAGE_WITH_ID)
         .then(decryptedMessage => {
           decryptedMessage.should.equal(messageBody);
         });
@@ -597,10 +598,27 @@ describe('SqsConsumer', () => {
 
     it('returns the decrypted message body', () => {
       let messageBody = {myProperty: 'myValue', encrypted: encryptFixture.ENCRYPTED_PAYLOAD};
-      return consumer._decryptMessage(messageBody)
+      return consumer._decryptMessage(messageBody, MOCK_MESSAGE_WITH_ID)
         .then(decryptedMessage => {
           decryptedMessage.should.eql(_.merge({}, {myProperty: 'myValue'}, encryptFixture.DATA));
         });
+    });
+
+    it('throws NonRetryableError when key is not present', () => {
+      let messageBody = {myProperty: 'myValue', encrypted: {
+        data: encryptFixture.ENCRYPTED_PAYLOAD.data
+      }};
+      return consumer._decryptMessage(messageBody, MOCK_MESSAGE_WITH_ID).should.be.eventually.rejectedWith(
+        error.NonRetryableError);
+    });
+
+    it('throws NonRetryableError when key is not invalid', () => {
+      let messageBody = {myProperty: 'myValue', encrypted: {
+        key: 'invalid',
+        data: encryptFixture.ENCRYPTED_PAYLOAD.data
+      }};
+      return consumer._decryptMessage(messageBody, MOCK_MESSAGE_WITH_ID).should.be.eventually.rejectedWith(
+        error.NonRetryableError);
     });
   });
 
