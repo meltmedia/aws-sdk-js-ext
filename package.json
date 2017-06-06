@@ -6,6 +6,9 @@
   "scripts": {
     "test": "npm test"
   },
+  "bin": {
+    "encrypt": "./bin/encrypt.js"
+  },
   "files": [
     "lib"
   ],
@@ -27,6 +30,7 @@
   "homepage": "https://github.com/meltmedia/aws-sdk-js-ext#readme",
   "dependencies": {
     "aws-sdk": "^2.4.13",
+    "command-line-args": "^4.0.6",
     "config": "^1.21.0",
     "crypto-js": "^3.1.9-1",
     "es6-promisify": "^4.1.0",
