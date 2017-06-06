@@ -1,11 +1,8 @@
 sudo: false
 language: node_js
 
-services:
-  - mysql
-
 node_js:
-  - "6.3"
+  - "6.10"
 
 env:
   global: {}
