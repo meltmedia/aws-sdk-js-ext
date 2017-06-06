@@ -1,4 +1,4 @@
-"use strict";
+'use strict';
 
 require('../../init-chai');
 
@@ -8,10 +8,12 @@ const
   commonUtils = require('../../../lib/common/utils'),
   SqsConsumer = require('../../../lib/sqs').SqsConsumer,
   sinon = require('sinon'),
-  chai = require("chai");
+  chai = require('chai'),
+  should = chai.should();
 
 const
   MOCK_QUEUE_URL = 'http://MockQueueUrl',
+  MOCK_MESSAGE_WITH_ID = {MessageId: 'MOCK-MESSAGE-ID'},
   EXPECTED_MESSAGE_VISIBILITY = 62, //seconds
   EXPECTED_POLL_WAIT = 12000; //ms
 
@@ -19,7 +21,7 @@ const
   encryptFixture = require('../fixtures/encryption-fixture');
 
 describe('SqsConsumer', () => {
-  let consumer, sqs, kms, conf, schemaService;
+  let consumer, sqs, kms, conf;
 
   beforeEach(() => {
     sqs = {
@@ -103,12 +105,12 @@ describe('SqsConsumer', () => {
       sqs.receiveMessage.returns({ promise: () => Promise.resolve({Messages: [
         {
           MessageId: '1',
-          Body: "{}",
+          Body: '{}',
           ReceiptHandle: 'handle1'
         },
         {
           MessageId: '2',
-          Body: "{}",
+          Body: '{}',
           ReceiptHandle: 'handle2'
         }
       ]})});
@@ -127,7 +129,7 @@ describe('SqsConsumer', () => {
       sqs.receiveMessage.returns({ promise: () => Promise.resolve({Messages: [
         {
           MessageId: '1',
-          Body: "{}",
+          Body: '{}',
           ReceiptHandle: 'handle1'
         }
       ]})});
@@ -143,7 +145,7 @@ describe('SqsConsumer', () => {
       sqs.receiveMessage.returns({ promise: () => Promise.resolve({Messages: [
         {
           MessageId: '1',
-          Body: "{}",
+          Body: '{}',
           Attributes: {
             ApproximateReceiveCount: 1
           },
@@ -155,7 +157,7 @@ describe('SqsConsumer', () => {
         sqs.deleteMessage.should.not.be.called;
         sqs.changeMessageVisibility.should.be.calledWith({
           QueueUrl: MOCK_QUEUE_URL,
-          ReceiptHandle: "handle1",
+          ReceiptHandle: 'handle1',
           VisibilityTimeout: EXPECTED_MESSAGE_VISIBILITY });
         commonUtils.wait.should.be.calledWith(EXPECTED_POLL_WAIT);
       });
@@ -165,7 +167,7 @@ describe('SqsConsumer', () => {
       sqs.receiveMessage.returns({ promise: () => Promise.resolve({Messages: [
         {
           MessageId: '1',
-          Body: "{}",
+          Body: '{}',
           Attributes: {
             ApproximateReceiveCount: 1
           },
@@ -185,7 +187,7 @@ describe('SqsConsumer', () => {
       sqs.receiveMessage.returns({ promise: () => Promise.resolve({Messages: [
         {
           MessageId: '1',
-          Body: "{}",
+          Body: '{}',
           Attributes: {
             ApproximateReceiveCount: 1
           },
@@ -202,12 +204,12 @@ describe('SqsConsumer', () => {
     });
 
     it('should handle validation error during message processing', () => {
-      consumer.conf.schema = '{"type": "array"}';
+      consumer.conf.schema = {type: 'array'};
 
       sqs.receiveMessage.returns({ promise: () => Promise.resolve({Messages: [
         {
           MessageId: '1',
-          Body: "{}",
+          Body: '{}',
           Attributes: {
             ApproximateReceiveCount: 1
           },
@@ -226,19 +228,19 @@ describe('SqsConsumer', () => {
       sqs.receiveMessage.returns({ promise: () => Promise.resolve({Messages: [
         {
           MessageId: '1',
-          Body: "{}",
+          Body: '{}',
           Attributes: {
             ApproximateReceiveCount: 1
           },
           ReceiptHandle: 'handle1'
         }
       ]})});
-      sqs.deleteMessage.returns({ promise: Promise.reject(new Error('MockError during deletion'))});
+      sqs.deleteMessage.returns({ promise: () => Promise.reject(new Error('MockError during deletion'))});
       return consumer.start(true).then(()=>{
         sqs.deleteMessage.should.be.calledOnce;
         sqs.changeMessageVisibility.should.be.calledWith({
           QueueUrl: MOCK_QUEUE_URL,
-          ReceiptHandle: "handle1",
+          ReceiptHandle: 'handle1',
           VisibilityTimeout: EXPECTED_MESSAGE_VISIBILITY });
         commonUtils.wait.should.be.calledWith(EXPECTED_POLL_WAIT);
       });
@@ -280,19 +282,21 @@ describe('SqsConsumer', () => {
   describe('stop', () => {
     beforeEach(() => {
       consumer = new SqsConsumer({sqs: sqs, kms: kms, conf: conf}, msgBody => Promise.resolve());
+      consumer.start();
     });
 
     it('should stop polling', () => {
-      consumer._running=true;
-      consumer.stop();
-      consumer._running.should.be.false;
+      return consumer.stop().then(() => {
+        consumer._running.should.be.false;
+        should.not.exist(consumer._queueUrl);
+      });
     });
   });
 
   describe('_scheduledConsuming', () => {
     let config,
     messages = {
-      Messages: [{MessageId: '1', Body: "{}",ReceiptHandle: 'handle1'}]
+      Messages: [{MessageId: '1', Body: '{}',ReceiptHandle: 'handle1'}]
     };
 
     before(() => {
@@ -423,7 +427,7 @@ describe('SqsConsumer', () => {
   describe('_getVisibilityTimeout', () => {
     let config,
         messages = {
-          Messages: [{MessageId: '1', Body: "{}",ReceiptHandle: 'handle1'}]
+          Messages: [{MessageId: '1', Body: '{}',ReceiptHandle: 'handle1'}]
         };
 
     beforeEach(() => {
@@ -498,7 +502,7 @@ describe('SqsConsumer', () => {
   describe('isConsuming', () => {
     let config,
         messages = {
-          Messages: [{MessageId: '1', Body: "{}",ReceiptHandle: 'handle1'}]
+          Messages: [{MessageId: '1', Body: '{}',ReceiptHandle: 'handle1'}]
         };
 
     before(() => {
@@ -586,7 +590,7 @@ describe('SqsConsumer', () => {
 
     it('returns the original message body if there is nothing to decrypt', () => {
       let messageBody = {myProperty: 'myValue'};
-      return consumer._decryptMessage(messageBody)
+      return consumer._decryptMessage(messageBody, MOCK_MESSAGE_WITH_ID)
         .then(decryptedMessage => {
           decryptedMessage.should.equal(messageBody);
         });
@@ -594,10 +598,27 @@ describe('SqsConsumer', () => {
 
     it('returns the decrypted message body', () => {
       let messageBody = {myProperty: 'myValue', encrypted: encryptFixture.ENCRYPTED_PAYLOAD};
-      return consumer._decryptMessage(messageBody)
+      return consumer._decryptMessage(messageBody, MOCK_MESSAGE_WITH_ID)
         .then(decryptedMessage => {
           decryptedMessage.should.eql(_.merge({}, {myProperty: 'myValue'}, encryptFixture.DATA));
         });
+    });
+
+    it('throws NonRetryableError when key is not present', () => {
+      let messageBody = {myProperty: 'myValue', encrypted: {
+        data: encryptFixture.ENCRYPTED_PAYLOAD.data
+      }};
+      return consumer._decryptMessage(messageBody, MOCK_MESSAGE_WITH_ID).should.be.eventually.rejectedWith(
+        error.NonRetryableError);
+    });
+
+    it('throws NonRetryableError when key is not invalid', () => {
+      let messageBody = {myProperty: 'myValue', encrypted: {
+        key: 'invalid',
+        data: encryptFixture.ENCRYPTED_PAYLOAD.data
+      }};
+      return consumer._decryptMessage(messageBody, MOCK_MESSAGE_WITH_ID).should.be.eventually.rejectedWith(
+        error.NonRetryableError);
     });
   });
 
