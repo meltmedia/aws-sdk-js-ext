@@ -85,25 +85,26 @@ describe('EncryptionUtil', () => {
   });
 
   describe('decrypt()', () => {
-    let promise;
-
-    before(() => {
-      promise = encryption.decrypt(encryptFixture.ENCRYPTED_PAYLOAD);
-    });
-
-    it('calls KMS.decrypt() with the correct arguments', () => {
-      let argument = {CiphertextBlob: Buffer.from(encryptFixture.CIPHERTEXT_KEY, 'hex')};
-      return promise.then(decryptedData => {
-        kms.decrypt.args[0][0].should.eql(argument);
+    it('decrypts the valid encrypted payload', () => {
+      return encryption.decrypt(encryptFixture.ENCRYPTED_PAYLOAD)
+        .then(decryptedData => {
+          decryptedData.should.eql(encryptFixture.DATA);
       });
     });
 
-    it('returns the correct decrypted data', () => {
-      return encryption.encrypt(encryptFixture.DATA)
-        .then(payload => { return encryption.decrypt(payload); })
-        .then(decryptedData => {
-          decryptedData.should.eql(encryptFixture.DATA);
-        });
+    it('throws TypeError if data to be decrypted is not valid', () => {
+      return encryption.decrypt({
+        data: 'invalid data',
+        key: encryptFixture.ENCRYPTED_PAYLOAD.key
+      }).should.be.eventually.rejectedWith(TypeError);
     });
+
+    it('throws TypeError if decrypted data is invalid JSON', () => {
+      return encryption.decrypt({
+        data: CryptoJS.AES.encrypt('invalid json',encryptFixture.PLAINTEXT_KEY).toString(),
+        key: encryptFixture.ENCRYPTED_PAYLOAD.key
+      }).should.be.eventually.rejectedWith(TypeError);
+    });
+
   });
 });
