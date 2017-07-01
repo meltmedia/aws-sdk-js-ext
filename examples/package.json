@@ -4,7 +4,8 @@
   "description": "AWS SDK Ext Examples",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node sqs/sqs-consumer-example.js",
+    "test": "node --debug sqs/sqs-consumer-example.js"
   },
   "author": "",
   "license": "ISC",

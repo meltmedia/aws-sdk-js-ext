@@ -7,7 +7,7 @@ const SqsConsumer = require('aws-sdk-ext').sqs.SqsConsumer,
   config = require('config'),
   utils = require('aws-sdk-ext').utils;
 
-class SqsConsumerExample extends SqsConsumer{
+class SqsConsumerExample extends SqsConsumer {
   handle(msgBody) {
     winston.info(`SqsExample::${this.name}:: Handled message: ${JSON.stringify(msgBody)}`);
   }
@@ -25,13 +25,9 @@ const consumer = new SqsConsumerExample({
 });
 
 
-
-
-
 consumer.on('running', () => {
-
   winston.info("SqsExample:: Sending test message");
-  return consumer.sendMessage({"id": 1, "test": "test"})
+  return consumer.sendMessage({"id": 1, "test": "test"} /*, {"secretKey": "Secret Value"} */)
     .catch(err => {
       winston.error(err);
       throw err;

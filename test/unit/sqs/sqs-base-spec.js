@@ -4,9 +4,10 @@ require('../../init-chai');
 
 const
   error = require('../../../lib/common/error'),
+  EncryptionUtil = require('../../../lib/common/encryption'),
   commonUtils = require('../../../lib/common/utils'),
-  SqsBase = require('../../../lib/sqs/sqs-base'),
-  _ = require('lodash'),
+  CryptoJS = require('crypto-js'),
+  SqsBase = require('../../../lib/sqs').SqsBase,
   sinon = require('sinon'),
   chai = require("chai"),
   expect = chai.expect;
@@ -14,8 +15,19 @@ const
 const
   MOCK_QUEUE_URL = 'http://MockQueueUrl';
 
-describe('SqsConsumer', () => {
-  let sqsBase, sqs, schemaService;
+const
+  encryptFixture = require('../fixtures/encryption-fixture');
+
+describe('SqsBase', () => {
+  let sqsBase, sqs, kms, conf, encryption;
+
+  before(() => {
+    sinon.stub(commonUtils, 'wait').returns(Promise.resolve());
+  });
+
+  after(() => {
+    commonUtils.wait.restore();
+  });
 
   beforeEach(() => {
     sqs = {
@@ -27,15 +39,38 @@ describe('SqsConsumer', () => {
       }),
       sendMessage: sinon.stub().returns({
         promise: () => Promise.resolve()
+      }),
+      deleteQueue: sinon.stub().returns({
+        promise: () => Promise.resolve()
+      }),
+      purgeQueue: sinon.stub().returns({
+        promise: () => Promise.resolve()
       })
     };
-    sinon.stub(commonUtils, 'wait').returns(Promise.resolve());
-    sqsBase = new SqsBase({sqs: sqs}, msgBody => Promise.resolve());
+    kms = {
+      generateDataKey: sinon.stub().returns({
+        promise: () => Promise.resolve({
+          Plaintext: Buffer.from(encryptFixture.PLAINTEXT_KEY, 'hex'),
+          CiphertextBlob: Buffer.from(encryptFixture.CIPHERTEXT_KEY, 'hex')
+        })
+      }),
+      decrypt: sinon.stub().returns({
+        promise: () => Promise.resolve({
+          Plaintext: Buffer.from(encryptFixture.PLAINTEXT_KEY, 'hex')
+        })
+      })
+    };
+    encryption = new EncryptionUtil({key: 'Key Name'}, kms);
+    conf = {
+      encryption: {
+        key: 'Key Name'
+      }
+    };
+
+    sqsBase = new SqsBase({sqs: sqs, encryptionUtil: encryption});
   });
 
-  afterEach(() => {
-    commonUtils.wait.restore();
-  });
+
 
   describe('init', () => {
     it('should initialize queue url for existing queue', () => {
@@ -111,17 +146,108 @@ describe('SqsConsumer', () => {
   });
 
   describe('sendMessage', () => {
-
     it('should validate and send message', () => {
       let msgData = {
         "test": "test"
       };
-      return sqsBase.sendMessage(msgData).then( () => {
-        return sqs.sendMessage.should.be.calledWith({
+      return sqsBase.sendMessage(msgData).then(() => {
+        return sqs.sendMessage.args[0][0].should.eql({
           MessageBody: JSON.stringify(msgData),
           QueueUrl: MOCK_QUEUE_URL
         });
       });
     });
+
+    it('should validate and encrypt message', () => {
+      let msgData = { test: 'test' };
+      let encryptedPayload = { encrypted: encryptFixture.ENCRYPTED_PAYLOAD};
+
+      return sqsBase.sendMessage(msgData, encryptFixture.DATA).then(() => {
+        let message = sqs.sendMessage.args[0][0];
+        let messageBody = JSON.parse(message.MessageBody);
+        messageBody.should.have.property('encrypted');
+
+        // Decrypt and check that it's the same as the original data
+        let bytes = CryptoJS.AES.decrypt(messageBody.encrypted.data, encryptFixture.PLAINTEXT_KEY);
+        let decryptedData = JSON.parse(bytes.toString(CryptoJS.enc.Utf8));
+        return decryptedData.should.eql(encryptFixture.DATA);
+      });
+    });
+  });
+
+  describe('_encrypt()', () => {
+    let encryptStub, data, promise;
+
+    before(() => {
+      encryptStub = sinon.stub(encryption, 'encrypt').resolves();
+      promise = sqsBase._encrypt(encryptFixture.DATA);
+    });
+
+    after(() => {
+      encryptStub.restore();
+    });
+
+    it('it calls encryptionUtil.encrypt() with the correct arguments', () => {
+      return promise.then(() => {
+        encryptStub.calledWithExactly(encryptFixture.DATA).should.be.true;
+      });
+    });
+  });
+
+  describe('_decrypt()', () => {
+    let decryptStub, payload, promise;
+
+    before(() => {
+      decryptStub = sinon.stub(encryption, 'decrypt').resolves();
+      promise = sqsBase._decrypt(encryptFixture.ENCRYPTED_PAYLOAD);
+    });
+
+    after(() => {
+      decryptStub.restore();
+    });
+
+    it('it calls encryptionUtil.decrypt() with the correct arguments', () => {
+      return promise.then(encryptedData => {
+        decryptStub.calledWith(encryptFixture.ENCRYPTED_PAYLOAD).should.be.true;
+      });
+    });
+  });
+
+  describe('deleteQueue', () => {
+
+    it('should delete the initialized queue', () => {
+      sqsBase._queueUrl = MOCK_QUEUE_URL;
+
+      return sqsBase.deleteQueue().then(() => {
+        expect(sqsBase._queueUrl).to.be.null;
+        sqs.deleteQueue.should.be.calledWithExactly({
+          QueueUrl: MOCK_QUEUE_URL
+        });
+      });
+    });
+
+    it('should not delete the non initialized queue', () => {
+      return sqsBase.deleteQueue().then(() => {
+        expect(sqsBase._queueUrl).to.be.null;
+        sqs.deleteQueue.should.not.be.called;
+      });
+    });
+
+
+  });
+
+  describe('purgeQueue', () => {
+
+    it('should purge message from the queue', () => {
+      sqsBase._queueUrl = MOCK_QUEUE_URL;
+
+      return sqsBase.purgeQueue().then(() => {
+        sqs.purgeQueue.should.be.calledWithExactly({
+          QueueUrl: MOCK_QUEUE_URL
+        });
+      });
+    });
+
+
   });
 });
