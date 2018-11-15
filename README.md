@@ -7,7 +7,7 @@ This library provides extensions to AWS SDK Javascript to provide ease of use fo
 ## Requirements
 This library is intended to be used on server side.
 
-- Node (6.3+)
+- Node (6.3+) `nvm install; nvm use;`
 
 ## Requirements (dev)
 Here are additional requirements for development:

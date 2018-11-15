@@ -76,6 +76,18 @@ describe('SqsConsumer', () => {
       consumer._checkPoll.restore();
     });
 
+    it('should not start polling if enabled is false', () => {
+      let newConf = Object.assign({}, conf, { consumer: { enabled: false } });
+      let disabledConsumer = new SqsConsumer({ sqs, kms, conf: newConf }, msgBody => Promise.resolve());
+
+      return disabledConsumer.start(true)
+        .then(() => {
+          disabledConsumer.conf.consumer.enabled.should.be.false;
+          disabledConsumer.running.should.be.false;
+        });
+
+    });
+
     it('should not start polling if initialization fails', () => {
       const mockError = new Error('MockError');
       sqs.getQueueUrl.returns({ promise: () => Promise.reject(mockError) });
@@ -612,7 +624,7 @@ describe('SqsConsumer', () => {
         error.NonRetryableError);
     });
 
-    it('throws NonRetryableError when key is not invalid', () => {
+    it('throws NonRetryableError when key is not valid', () => {
       let messageBody = {myProperty: 'myValue', encrypted: {
         key: 'invalid',
         data: encryptFixture.ENCRYPTED_PAYLOAD.data

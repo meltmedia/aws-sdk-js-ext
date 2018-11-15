@@ -1,13 +1,10 @@
 {
   "name": "aws-sdk-ext",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "AWS SDK Javascript Extensions",
   "main": "lib/index.js",
   "scripts": {
-    "test": "npm test"
-  },
-  "bin": {
-    "encrypt": "./bin/encrypt.js"
+    "test": "gulp test"
   },
   "files": [
     "lib"
@@ -56,5 +53,10 @@
     "mocha": "^3.0.2",
     "sinon": "^2.1.0",
     "sinon-chai": "^2.9.0"
+  },
+  "directories": {
+    "example": "examples",
+    "lib": "lib",
+    "test": "test"
   }
 }
