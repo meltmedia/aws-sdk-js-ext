@@ -14,8 +14,8 @@ const
 const
   MOCK_QUEUE_URL = 'http://MockQueueUrl',
   MOCK_MESSAGE_WITH_ID = {MessageId: 'MOCK-MESSAGE-ID'},
-  EXPECTED_MESSAGE_VISIBILITY = 62, //seconds
-  EXPECTED_POLL_WAIT = 12000; //ms
+  EXPECTED_MESSAGE_VISIBILITY = 120, //seconds
+  EXPECTED_POLL_WAIT = 20000; //ms
 
 const
   encryptFixture = require('../fixtures/encryption-fixture');

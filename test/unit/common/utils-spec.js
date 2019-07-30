@@ -11,7 +11,7 @@ describe('utils', () => {
   describe('nextRetryInterval', () => {
 
     it('should calculate next retry interval', () => {
-      commonUtils.nextRetryInterval(3).should.be.equal(68);
+      commonUtils.nextRetryInterval(3).should.be.equal(480);
     });
 
     it('should limit max interval', () => {
