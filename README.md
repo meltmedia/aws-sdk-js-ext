@@ -68,7 +68,7 @@ This project uses gitflow for release.
 
 ### Functional Tests
 
-Currently these tests are not in a ideal state, hopefully they will be updated later. 
+Currently these tests are not in an ideal state, hopefully they will be updated later. 
 
 To execute the functional tests you will need [elasticmq](https://github.com/softwaremill/elasticmq) running on http://localhost:9324
 

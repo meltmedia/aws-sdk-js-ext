@@ -88,7 +88,7 @@ describe('Sqs Consumer', () => {
         done();
       }
     });
-  })
+  });
 
   afterEach(done => {
     sqs.purgeQueue({ QueueUrl: queueURL }, function (err, data) {
