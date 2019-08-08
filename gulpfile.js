@@ -10,7 +10,8 @@ const paths = {
   watch: ['./lib/**/*.js', './test/**/*.js'],
   tests: {
     unit: ['./test/unit/**/*-spec.js'],
-    integration: ['./test/integration/**/*-spec.js']
+    integration: ['./test/integration/**/*-spec.js'],
+    functional: ['./test/functional/**/*-spec.js']
   },
   source: ['./lib/**/*.js']
 };
@@ -51,6 +52,15 @@ gulp.task('test:unit', () => {
 
 gulp.task('test:integration', () => {
   return gulp.src(paths.tests.integration, { read: false })
+    .pipe(spawnMocha({
+      timeout: TEST_TIMEOUT,
+      istanbul: istanbulOpts
+    }))
+    .on('error', gutil.log);
+});
+
+gulp.task('test:functional', () => {
+  return gulp.src(paths.tests.functional, { read: false })
     .pipe(spawnMocha({
       timeout: TEST_TIMEOUT,
       istanbul: istanbulOpts
