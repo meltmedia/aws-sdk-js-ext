@@ -15,7 +15,7 @@ describe('utils', () => {
     });
 
     it('should limit max interval', () => {
-      commonUtils.nextRetryInterval(10).should.be.equal(600);
+      commonUtils.nextRetryInterval(10).should.be.equal(1800);
     });
 
   });
