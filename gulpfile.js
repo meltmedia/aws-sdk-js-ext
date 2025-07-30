@@ -1,5 +1,5 @@
 const gulp = require('gulp'),
-  gutil = require('gulp-util'),
+  log = require('fancy-log'),
   spawnMocha = require('gulp-spawn-mocha'),
   plugins = require('gulp-load-plugins')();
 
@@ -34,20 +34,20 @@ gulp.task('coverage', () => {
       timeout: TEST_TIMEOUT,
       istanbul: istanbulOpts
     }))
-    .on('error', gutil.log);
+    .on('error', log);
 });
 
-gulp.task('coveralls', ['coverage'], () => {
+gulp.task('coveralls', gulp.series('coverage', () => {
   return gulp.src('coverage/**/lcov.info')
     .pipe(plugins.coveralls());
-});
+}));
 
 gulp.task('test:unit', () => {
   return gulp.src(paths.tests.unit, { read: false })
     .pipe(spawnMocha({
       istanbul: istanbulOpts
     }))
-    .on('error', gutil.log);
+    .on('error', log);
 });
 
 gulp.task('test:integration', () => {
@@ -56,7 +56,7 @@ gulp.task('test:integration', () => {
       timeout: TEST_TIMEOUT,
       istanbul: istanbulOpts
     }))
-    .on('error', gutil.log);
+    .on('error', log);
 });
 
 gulp.task('test:functional', () => {
@@ -65,14 +65,13 @@ gulp.task('test:functional', () => {
       timeout: TEST_TIMEOUT,
       istanbul: istanbulOpts
     }))
-    .on('error', gutil.log);
+    .on('error', log);
 });
 
 gulp.task('test:unit-watch', () => {
-  gulp.watch(paths.watch, ['test:unit']);
+  gulp.watch(paths.watch, gulp.series('test:unit'));
 });
 
-
-gulp.task('test', ['coverage']);
-gulp.task('travis', ['lint', 'test']);
-gulp.task('default', ['lint', 'test']);
+gulp.task('test', gulp.series('coverage'));
+gulp.task('travis', gulp.series('lint', 'test'));
+gulp.task('default', gulp.series('lint', 'test'));

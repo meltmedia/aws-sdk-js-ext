@@ -625,11 +625,32 @@ describe('SqsConsumer', () => {
     });
 
     it('throws NonRetryableError when key is not valid', () => {
+      // Create a new KMS mock that throws ValidationException for invalid keys
+      let kmsWithValidation = {
+        decrypt: sinon.stub().callsFake(params => {
+          if (params.CiphertextBlob.length === 0) {
+            const validationError = new Error('1 validation error detected: Value at \'ciphertextBlob\' failed to satisfy constraint: Member must have length greater than or equal to 1');
+            validationError.name = 'ValidationException';
+            return {
+              promise: () => Promise.reject(validationError)
+            };
+          }
+          return {
+            promise: () => Promise.resolve({
+              Plaintext: Buffer.from(encryptFixture.PLAINTEXT_KEY, 'hex')
+            })
+          };
+        })
+      };
+      
+      // Create consumer with the validation KMS mock
+      let testConsumer = new SqsConsumer({sqs: sqs, kms: kmsWithValidation, conf: conf}, msgBody => Promise.resolve());
+      
       let messageBody = {myProperty: 'myValue', encrypted: {
         key: 'invalid',
         data: encryptFixture.ENCRYPTED_PAYLOAD.data
       }};
-      return consumer._decryptMessage(messageBody, MOCK_MESSAGE_WITH_ID).should.be.eventually.rejectedWith(
+      return testConsumer._decryptMessage(messageBody, MOCK_MESSAGE_WITH_ID).should.be.eventually.rejectedWith(
         error.NonRetryableError);
     });
   });
