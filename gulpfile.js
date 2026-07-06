@@ -1,4 +1,5 @@
 const gulp = require('gulp'),
+  fs = require('fs'),
   log = require('fancy-log'),
   spawnMocha = require('gulp-spawn-mocha'),
   plugins = require('gulp-load-plugins')();
@@ -10,7 +11,7 @@ const paths = {
   watch: ['./lib/**/*.js', './test/**/*.js'],
   tests: {
     unit: ['./test/unit/**/*-spec.js'],
-    integration: ['./test/integration/**/*-spec.js'],
+    integration: fs.existsSync('./test/integration') ? ['./test/integration/**/*-spec.js'] : [],
     functional: ['./test/functional/**/*-spec.js']
   },
   source: ['./lib/**/*.js']

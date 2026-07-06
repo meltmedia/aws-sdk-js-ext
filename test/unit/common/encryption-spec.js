@@ -8,7 +8,7 @@ const
   CryptoJS = require('crypto-js'),
   encryptFixture = require('../fixtures/encryption-fixture'),
   EncryptionUtil = require('../../../lib/common/encryption'),
-  KMS = require('aws-sdk').KMS,
+  { GenerateDataKeyCommand, DecryptCommand } = require('@aws-sdk/client-kms'),
   sinon = require('sinon');
 
 describe('EncryptionUtil', () => {
@@ -16,18 +16,19 @@ describe('EncryptionUtil', () => {
 
   before(() => {
     kms = {
-      generateDataKey: sinon.stub().returns({
-        promise: () => Promise.resolve({
-          Plaintext: Buffer.from(encryptFixture.PLAINTEXT_KEY, 'hex'),
-          CiphertextBlob: Buffer.from(encryptFixture.CIPHERTEXT_KEY, 'hex')
-        })
-      }),
-      decrypt: sinon.stub().returns({
-        promise: () => Promise.resolve({
-          Plaintext: Buffer.from(encryptFixture.PLAINTEXT_KEY, 'hex')
-        })
-      })
+      generateDataKey: sinon.stub().callsFake(() => Promise.resolve({
+        Plaintext: Buffer.from(encryptFixture.PLAINTEXT_KEY, 'hex'),
+        CiphertextBlob: Buffer.from(encryptFixture.CIPHERTEXT_KEY, 'hex')
+      })),
+      decrypt: sinon.stub().callsFake(() => Promise.resolve({
+        Plaintext: Buffer.from(encryptFixture.PLAINTEXT_KEY, 'hex')
+      }))
     };
+    kms.send = sinon.stub().callsFake(command => {
+      if(command instanceof GenerateDataKeyCommand) return kms.generateDataKey(command.input);
+      if(command instanceof DecryptCommand) return kms.decrypt(command.input);
+      return Promise.reject(new Error(`Unhandled command: ${command.constructor.name}`));
+    });
     encryption = new EncryptionUtil({key: 'Key Name'}, kms);
   });
 

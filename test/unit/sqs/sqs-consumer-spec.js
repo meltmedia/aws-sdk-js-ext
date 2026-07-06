@@ -12,6 +12,19 @@ const
   should = chai.should();
 
 const
+  {
+    ChangeMessageVisibilityCommand,
+    CreateQueueCommand,
+    GetQueueUrlCommand,
+    ReceiveMessageCommand,
+    DeleteMessageCommand
+  } = require('@aws-sdk/client-sqs'),
+  {
+    GenerateDataKeyCommand,
+    DecryptCommand
+  } = require('@aws-sdk/client-kms');
+
+const
   MOCK_QUEUE_URL = 'http://MockQueueUrl',
   MOCK_MESSAGE_WITH_ID = {MessageId: 'MOCK-MESSAGE-ID'},
   EXPECTED_MESSAGE_VISIBILITY = 120, //seconds
@@ -25,35 +38,34 @@ describe('SqsConsumer', () => {
 
   beforeEach(() => {
     sqs = {
-      changeMessageVisibility: sinon.stub().returns({
-        promise: () => Promise.resolve({})
-      }),
-      createQueue: sinon.stub().returns({
-        promise: () => Promise.resolve({QueueUrl: MOCK_QUEUE_URL})
-      }),
-      getQueueUrl: sinon.stub().returns({
-        promise: () => Promise.resolve({QueueUrl: MOCK_QUEUE_URL})
-      }),
-      receiveMessage: sinon.stub().returns({
-        promise: () => Promise.resolve({})
-      }),
-      deleteMessage: sinon.stub().returns({
-        promise: () => Promise.resolve({})
-      })
+      changeMessageVisibility: sinon.stub().resolves({}),
+      createQueue: sinon.stub().resolves({QueueUrl: MOCK_QUEUE_URL}),
+      getQueueUrl: sinon.stub().resolves({QueueUrl: MOCK_QUEUE_URL}),
+      receiveMessage: sinon.stub().resolves({}),
+      deleteMessage: sinon.stub().resolves({})
     };
+    sqs.send = sinon.stub().callsFake(command => {
+      if(command instanceof ChangeMessageVisibilityCommand) return sqs.changeMessageVisibility(command.input);
+      if(command instanceof CreateQueueCommand) return sqs.createQueue(command.input);
+      if(command instanceof GetQueueUrlCommand) return sqs.getQueueUrl(command.input);
+      if(command instanceof ReceiveMessageCommand) return sqs.receiveMessage(command.input);
+      if(command instanceof DeleteMessageCommand) return sqs.deleteMessage(command.input);
+      return Promise.reject(new Error(`Unhandled command: ${command.constructor.name}`));
+    });
     kms = {
-      generateDataKey: sinon.stub().returns({
-        promise: () => Promise.resolve({
-          Plaintext: Buffer.from(encryptFixture.PLAINTEXT_KEY, 'hex'),
-          CiphertextBlob: Buffer.from(encryptFixture.CIPHERTEXT_KEY, 'hex')
-        })
-      }),
-      decrypt: sinon.stub().returns({
-        promise: () => Promise.resolve({
-          Plaintext: Buffer.from(encryptFixture.PLAINTEXT_KEY, 'hex')
-        })
-      })
+      generateDataKey: sinon.stub().callsFake(() => Promise.resolve({
+        Plaintext: Buffer.from(encryptFixture.PLAINTEXT_KEY, 'hex'),
+        CiphertextBlob: Buffer.from(encryptFixture.CIPHERTEXT_KEY, 'hex')
+      })),
+      decrypt: sinon.stub().callsFake(() => Promise.resolve({
+        Plaintext: Buffer.from(encryptFixture.PLAINTEXT_KEY, 'hex')
+      }))
     };
+    kms.send = sinon.stub().callsFake(command => {
+      if(command instanceof GenerateDataKeyCommand) return kms.generateDataKey(command.input);
+      if(command instanceof DecryptCommand) return kms.decrypt(command.input);
+      return Promise.reject(new Error(`Unhandled command: ${command.constructor.name}`));
+    });
     conf = {
       encryption: {
         key: 'Key Name'
@@ -90,7 +102,7 @@ describe('SqsConsumer', () => {
 
     it('should not start polling if initialization fails', () => {
       const mockError = new Error('MockError');
-      sqs.getQueueUrl.returns({ promise: () => Promise.reject(mockError) });
+      sqs.getQueueUrl.rejects(mockError);
 
       return consumer.start(true).catch((error) => {
         error.should.be.equal(mockError);
@@ -106,7 +118,7 @@ describe('SqsConsumer', () => {
     });
 
     it('should continue polling if there are no messages from queue', () => {
-      sqs.receiveMessage.returns({ promise: () => Promise.resolve({Messages: []}) });
+      sqs.receiveMessage.resolves({Messages: []});
       // No error should be thrown
       return consumer.start(true).then(()=>{
         commonUtils.wait.should.not.be.called;
@@ -114,7 +126,7 @@ describe('SqsConsumer', () => {
     });
 
     it('should poll and process messages from queue', () => {
-      sqs.receiveMessage.returns({ promise: () => Promise.resolve({Messages: [
+      sqs.receiveMessage.resolves({Messages: [
         {
           MessageId: '1',
           Body: '{}',
@@ -125,7 +137,7 @@ describe('SqsConsumer', () => {
           Body: '{}',
           ReceiptHandle: 'handle2'
         }
-      ]})});
+      ]});
       return consumer.start(true).then(()=>{
         sqs.deleteMessage.should.be.calledTwice;
         sqs.deleteMessage.should.be.calledWith({
@@ -138,13 +150,13 @@ describe('SqsConsumer', () => {
 
     it('should poll, validate and process messages from queue when schema is defined', () => {
       consumer.conf.schema.name = 'mock-schema';
-      sqs.receiveMessage.returns({ promise: () => Promise.resolve({Messages: [
+      sqs.receiveMessage.resolves({Messages: [
         {
           MessageId: '1',
           Body: '{}',
           ReceiptHandle: 'handle1'
         }
-      ]})});
+      ]});
       return consumer.start(true).then(()=>{
         sqs.deleteMessage.should.be.calledOnce;
         sqs.deleteMessage.should.be.calledWith({
@@ -154,7 +166,7 @@ describe('SqsConsumer', () => {
     });
 
     it('should handle error in message processing', () => {
-      sqs.receiveMessage.returns({ promise: () => Promise.resolve({Messages: [
+      sqs.receiveMessage.resolves({Messages: [
         {
           MessageId: '1',
           Body: '{}',
@@ -163,7 +175,7 @@ describe('SqsConsumer', () => {
           },
           ReceiptHandle: 'handle1'
         }
-      ]})});
+      ]});
       consumer.handle = msBody => Promise.reject(new Error('MockError'));
       return consumer.start(true).then(()=>{
         sqs.deleteMessage.should.not.be.called;
@@ -176,7 +188,7 @@ describe('SqsConsumer', () => {
     });
 
     it('should handle syntax error in message processing', () => {
-      sqs.receiveMessage.returns({ promise: () => Promise.resolve({Messages: [
+      sqs.receiveMessage.resolves({Messages: [
         {
           MessageId: '1',
           Body: '{}',
@@ -185,7 +197,7 @@ describe('SqsConsumer', () => {
           },
           ReceiptHandle: 'handle1'
         }
-      ]})});
+      ]});
       consumer.handle = msBody => Promise.reject(new SyntaxError('MockError'));
       return consumer.start(true).then(()=>{
         sqs.deleteMessage.should.be.calledWith({
@@ -196,7 +208,7 @@ describe('SqsConsumer', () => {
     });
 
     it('should handle NonRetryableError  in message processing', () => {
-      sqs.receiveMessage.returns({ promise: () => Promise.resolve({Messages: [
+      sqs.receiveMessage.resolves({Messages: [
         {
           MessageId: '1',
           Body: '{}',
@@ -205,7 +217,7 @@ describe('SqsConsumer', () => {
           },
           ReceiptHandle: 'handle1'
         }
-      ]})});
+      ]});
       consumer.handle = msBody => Promise.reject(new error.NonRetryableError('MockError'));
       return consumer.start(true).then(()=>{
         sqs.deleteMessage.should.be.calledWith({
@@ -218,7 +230,7 @@ describe('SqsConsumer', () => {
     it('should handle validation error during message processing', () => {
       consumer.conf.schema = {type: 'array'};
 
-      sqs.receiveMessage.returns({ promise: () => Promise.resolve({Messages: [
+      sqs.receiveMessage.resolves({Messages: [
         {
           MessageId: '1',
           Body: '{}',
@@ -227,7 +239,7 @@ describe('SqsConsumer', () => {
           },
           ReceiptHandle: 'handle1'
         }
-      ]})});
+      ]});
       return consumer.start(true).then(()=>{
         sqs.deleteMessage.should.be.calledWith({
           QueueUrl: MOCK_QUEUE_URL, ReceiptHandle: 'handle1'});
@@ -237,7 +249,7 @@ describe('SqsConsumer', () => {
     });
 
     it('should handle error in message deletion', () => {
-      sqs.receiveMessage.returns({ promise: () => Promise.resolve({Messages: [
+      sqs.receiveMessage.resolves({Messages: [
         {
           MessageId: '1',
           Body: '{}',
@@ -246,8 +258,8 @@ describe('SqsConsumer', () => {
           },
           ReceiptHandle: 'handle1'
         }
-      ]})});
-      sqs.deleteMessage.returns({ promise: () => Promise.reject(new Error('MockError during deletion'))});
+      ]});
+      sqs.deleteMessage.rejects(new Error('MockError during deletion'));
       return consumer.start(true).then(()=>{
         sqs.deleteMessage.should.be.calledOnce;
         sqs.changeMessageVisibility.should.be.calledWith({
@@ -259,7 +271,7 @@ describe('SqsConsumer', () => {
     });
 
     it('should wait prior to polling for second run if there is an error in processing', () => {
-      sqs.receiveMessage.returns({ promise: () => Promise.reject(new Error('MockError'))});
+      sqs.receiveMessage.rejects(new Error('MockError'));
       // No error should be thrown
       return consumer.start(true).then(()=>{
         commonUtils.wait.should.be.calledWith(EXPECTED_POLL_WAIT);
@@ -627,19 +639,16 @@ describe('SqsConsumer', () => {
     it('throws NonRetryableError when key is not valid', () => {
       // Create a new KMS mock that throws ValidationException for invalid keys
       let kmsWithValidation = {
-        decrypt: sinon.stub().callsFake(params => {
+        send: sinon.stub().callsFake(command => {
+          let params = command.input;
           if (params.CiphertextBlob.length === 0) {
             const validationError = new Error('1 validation error detected: Value at \'ciphertextBlob\' failed to satisfy constraint: Member must have length greater than or equal to 1');
             validationError.name = 'ValidationException';
-            return {
-              promise: () => Promise.reject(validationError)
-            };
+            return Promise.reject(validationError);
           }
-          return {
-            promise: () => Promise.resolve({
-              Plaintext: Buffer.from(encryptFixture.PLAINTEXT_KEY, 'hex')
-            })
-          };
+          return Promise.resolve({
+            Plaintext: Buffer.from(encryptFixture.PLAINTEXT_KEY, 'hex')
+          });
         })
       };
       

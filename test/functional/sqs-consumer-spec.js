@@ -2,8 +2,8 @@
 
 require('../init-chai');
 
-const 
-  AWS = require('aws-sdk'),
+const
+  { SQSClient, CreateQueueCommand, SendMessageCommand, PurgeQueueCommand } = require('@aws-sdk/client-sqs'),
   SqsConsumer = require('../../lib/sqs/sqs-consumer'),
   sinon = require('sinon'),
   chai = require('chai'),
@@ -49,9 +49,8 @@ describe('Sqs Consumer', () => {
   let sqs, queueURL, consumer;
 
   before(done => {
-    AWS.config.update({ region: 'REGION' });
-    sqs = new AWS.SQS({
-      apiVersion: '2012-11-05',
+    sqs = new SQSClient({
+      region: 'REGION',
       endpoint: 'http://localhost:9324'
     });
 
@@ -62,15 +61,13 @@ describe('Sqs Consumer', () => {
     consumer = new SqsConsumer({ sqs: sqs }, null, AWS_EXT_CONFIG);
     consumer._queueName = TEST_SQS_QUEUE_NAME;
 
-    sqs.createQueue(params, function (err, data) {
-      if (err) {
-        console.log(err, err.stack);
-        done();
-      } else {
-        queueURL = data.QueueUrl;
-        consumer._queueUrl = queueURL;
-        done();
-      }
+    sqs.send(new CreateQueueCommand(params)).then(data => {
+      queueURL = data.QueueUrl;
+      consumer._queueUrl = queueURL;
+      done();
+    }).catch(err => {
+      console.log(err, err.stack);
+      done();
     });
   });
 
@@ -80,24 +77,20 @@ describe('Sqs Consumer', () => {
       QueueUrl: queueURL
     };
 
-    sqs.sendMessage(defaultMessage, function (err, data) {
-      if (err) {
-        console.log(err, err.stack);
-        done();
-      } else {
-        done();
-      }
+    sqs.send(new SendMessageCommand(defaultMessage)).then(() => {
+      done();
+    }).catch(err => {
+      console.log(err, err.stack);
+      done();
     });
   });
 
   afterEach(done => {
-    sqs.purgeQueue({ QueueUrl: queueURL }, function (err, data) {
-      if (err) {
-        console.log(err, err.stack);
-        done();
-      } else {
-        done();
-      }
+    sqs.send(new PurgeQueueCommand({ QueueUrl: queueURL })).then(() => {
+      done();
+    }).catch(err => {
+      console.log(err, err.stack);
+      done();
     });
   });
 
