@@ -3,7 +3,7 @@
 const SqsConsumer = require('aws-sdk-ext').sqs.SqsConsumer,
   // SqsConsumer = require('../../lib').sqs.SqsConsumer,
   winston = require('winston'),
-  promisify = require('es6-promisify'),
+  {promisify} = require('util'),
   config = require('config'),
   utils = require('aws-sdk-ext').utils;
 

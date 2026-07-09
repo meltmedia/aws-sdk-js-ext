@@ -13,6 +13,19 @@ const
   expect = chai.expect;
 
 const
+  {
+    CreateQueueCommand,
+    GetQueueUrlCommand,
+    SendMessageCommand,
+    DeleteQueueCommand,
+    PurgeQueueCommand
+  } = require('@aws-sdk/client-sqs'),
+  {
+    GenerateDataKeyCommand,
+    DecryptCommand
+  } = require('@aws-sdk/client-kms');
+
+const
   MOCK_QUEUE_URL = 'http://MockQueueUrl';
 
 const
@@ -31,35 +44,34 @@ describe('SqsBase', () => {
 
   beforeEach(() => {
     sqs = {
-      createQueue: sinon.stub().returns({
-        promise: () => Promise.resolve({QueueUrl: MOCK_QUEUE_URL})
-      }),
-      getQueueUrl: sinon.stub().returns({
-        promise: () => Promise.resolve({QueueUrl: MOCK_QUEUE_URL})
-      }),
-      sendMessage: sinon.stub().returns({
-        promise: () => Promise.resolve()
-      }),
-      deleteQueue: sinon.stub().returns({
-        promise: () => Promise.resolve()
-      }),
-      purgeQueue: sinon.stub().returns({
-        promise: () => Promise.resolve()
-      })
+      createQueue: sinon.stub().resolves({QueueUrl: MOCK_QUEUE_URL}),
+      getQueueUrl: sinon.stub().resolves({QueueUrl: MOCK_QUEUE_URL}),
+      sendMessage: sinon.stub().resolves(),
+      deleteQueue: sinon.stub().resolves(),
+      purgeQueue: sinon.stub().resolves()
     };
+    sqs.send = sinon.stub().callsFake(command => {
+      if(command instanceof CreateQueueCommand) return sqs.createQueue(command.input);
+      if(command instanceof GetQueueUrlCommand) return sqs.getQueueUrl(command.input);
+      if(command instanceof SendMessageCommand) return sqs.sendMessage(command.input);
+      if(command instanceof DeleteQueueCommand) return sqs.deleteQueue(command.input);
+      if(command instanceof PurgeQueueCommand) return sqs.purgeQueue(command.input);
+      return Promise.reject(new Error(`Unhandled command: ${command.constructor.name}`));
+    });
     kms = {
-      generateDataKey: sinon.stub().returns({
-        promise: () => Promise.resolve({
-          Plaintext: Buffer.from(encryptFixture.PLAINTEXT_KEY, 'hex'),
-          CiphertextBlob: Buffer.from(encryptFixture.CIPHERTEXT_KEY, 'hex')
-        })
-      }),
-      decrypt: sinon.stub().returns({
-        promise: () => Promise.resolve({
-          Plaintext: Buffer.from(encryptFixture.PLAINTEXT_KEY, 'hex')
-        })
-      })
+      generateDataKey: sinon.stub().callsFake(() => Promise.resolve({
+        Plaintext: Buffer.from(encryptFixture.PLAINTEXT_KEY, 'hex'),
+        CiphertextBlob: Buffer.from(encryptFixture.CIPHERTEXT_KEY, 'hex')
+      })),
+      decrypt: sinon.stub().callsFake(() => Promise.resolve({
+        Plaintext: Buffer.from(encryptFixture.PLAINTEXT_KEY, 'hex')
+      }))
     };
+    kms.send = sinon.stub().callsFake(command => {
+      if(command instanceof GenerateDataKeyCommand) return kms.generateDataKey(command.input);
+      if(command instanceof DecryptCommand) return kms.decrypt(command.input);
+      return Promise.reject(new Error(`Unhandled command: ${command.constructor.name}`));
+    });
     encryption = new EncryptionUtil({key: 'Key Name'}, kms);
     conf = {
       encryption: {
@@ -83,7 +95,7 @@ describe('SqsBase', () => {
     it('should initialize queue url for non existing queue', () => {
       const error = new Error('MockError');
       error.code = 'AWS.SimpleQueueService.NonExistentQueue';
-      sqs.getQueueUrl.returns({ promise: () => Promise.reject(error) });
+      sqs.getQueueUrl.rejects(error);
       return sqsBase._init().then(() => {
         expect(sqsBase._queueUrl).should.not.be.null;
         sqsBase._queueUrl.should.be.equal(MOCK_QUEUE_URL);
@@ -92,7 +104,7 @@ describe('SqsBase', () => {
 
     it('should fail to initialize queue getQueueUrl when AWS Call fails for getQueueUrl', () => {
       const mockError = new Error('MockError');
-      sqs.getQueueUrl.returns({ promise: () => Promise.reject(mockError) });
+      sqs.getQueueUrl.rejects(mockError);
       return sqsBase._init().catch((error) => {
         expect(sqsBase._queueUrl).be.null;
         error.should.be.equal(mockError);
@@ -102,10 +114,10 @@ describe('SqsBase', () => {
     it('should fail to initialize queue getQueueUrl when AWS Call fails for createQueue', () => {
       const mockNonExistingError = new Error('MockNonExistingQueueError');
       mockNonExistingError.code = 'AWS.SimpleQueueService.NonExistentQueue';
-      sqs.getQueueUrl.returns({ promise: () => Promise.reject(mockNonExistingError) });
+      sqs.getQueueUrl.rejects(mockNonExistingError);
 
       const mockCreateQueueError = new Error('MockCreateQueueError');
-      sqs.createQueue.returns({ promise: () => Promise.reject(mockCreateQueueError) });
+      sqs.createQueue.rejects(mockCreateQueueError);
 
 
       return sqsBase._init().catch((error) => {

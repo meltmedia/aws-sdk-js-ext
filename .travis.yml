@@ -2,10 +2,12 @@ sudo: false
 language: node_js
 
 node_js:
-  - "6.10"
+  - "22.23"
 
 env:
   global: {}
 before_script:
   - npm install -g gulp-cli
+install:
+  - npm ci --legacy-peer-deps
 script: gulp travis
