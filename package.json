@@ -37,7 +37,7 @@
     "crypto-js": "4.2.0",
     "human-interval": "2.0.1",
     "lodash": "4.18.1",
-    "moment": "2.30.1",
+    "moment": "2.31.0",
     "winston": "3.19.0",
     "z-schema": "12.3.1"
   },
